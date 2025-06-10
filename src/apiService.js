@@ -1,7 +1,7 @@
 // apiService.js - Servicio para conectar con tu backend en Render
 
 const API_BASE_URL = 'https://logintec-1.onrender.com';
-const API_TOKEN = 'token_cliente_001_empresa_prueba_2024';
+const API_TOKEN =  'CLIENTE_001';
 
 // Configuración base para todas las peticiones
 const apiConfig = {
