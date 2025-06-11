@@ -131,6 +131,18 @@ function App() {
   const [connectionStatus, setConnectionStatus] = useState('checking');
   const [searchTerm, setSearchTerm] = useState('');
 
+  // 🔧 FUNCIÓN DE PRUEBA TEMPORAL - AHORA DENTRO DEL COMPONENTE
+  const probarConexion = async () => {
+    try {
+      const result = await ApiService.testConnection();
+      console.log('✅ Conexión exitosa:', result);
+      alert(`¡Conectado! Cliente: ${result.cliente}`);
+    } catch (error) {
+      console.error('❌ Error:', error);
+      alert('Error: ' + error.message);
+    }
+  };
+
   // ✅ VERIFICAR CONEXIÓN AL CARGAR
   useEffect(() => {
     checkConnection();
@@ -364,6 +376,13 @@ function App() {
               <Typography variant="h5">ESCANEOS REALES</Typography>
               <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                 {renderConnectionStatus()}
+                <Button 
+                  variant="outlined" 
+                  onClick={probarConexion}
+                  sx={{ mr: 1 }}
+                >
+                  🔧 Probar API
+                </Button>
                 <Button 
                   variant="outlined" 
                   onClick={loadAllData}
