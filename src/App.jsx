@@ -1,13 +1,22 @@
+import React, { useState, useEffect } from 'react';
 import { 
   Box, TextField, Button, Paper, Typography, AppBar, Toolbar,
   Tabs, Tab, Container, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, ThemeProvider, createTheme, CircularProgress,
-  Alert, AlertTitle, Chip, Card, CardContent, Grid
+  Alert, AlertTitle, Chip, Card, CardContent, Grid,
+  Dialog, DialogContent, DialogTitle, IconButton, Tooltip, Fab
 } from '@mui/material';
-import { useState, useEffect } from 'react';
-import ApiService from './apiService'; // ✅ IMPORTAR EL SERVICIO
+import { 
+  Visibility as ViewIcon,
+  Image as ImageIcon,
+  Camera as CameraIcon,
+  Close as CloseIcon,
+  Refresh as RefreshIcon,
+  Assessment as AssessmentIcon
+} from '@mui/icons-material';
+import ApiService from './apiService'; // ✅ MANTENER TU SERVICIO
 
-// Tema personalizado (mantenemos el mismo)
+// ✅ MANTENER EXACTAMENTE TUS COLORES
 const theme = createTheme({
   palette: {
     primary: {
@@ -96,7 +105,7 @@ const theme = createTheme({
           boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
         },
         indicator: {
-          backgroundColor: '#7CB342',
+          backgroundColor: '#6B2C5A',
           height: 3,
         },
       },
@@ -106,7 +115,8 @@ const theme = createTheme({
         root: {
           textTransform: 'none',
           fontWeight: 500,
-          fontSize: '16px',
+          fontSize: '0.95rem',
+          color: '#666666',
           '&.Mui-selected': {
             color: '#6B2C5A',
             fontWeight: 600,
@@ -121,82 +131,28 @@ function App() {
   const [usuario, setUsuario] = useState('');
   const [password, setPassword] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentTab, setCurrentTab] = useState(0);
-  
-  // ✅ NUEVOS ESTADOS PARA DATOS REALES
+  const [currentTab, setCurrentTab] = useState(1); // ESCANEOS por defecto
   const [escaneos, setEscaneos] = useState([]);
-  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [connectionStatus, setConnectionStatus] = useState('checking');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [error, setError] = useState('');
+  const [stats, setStats] = useState({});
+  
+  // ✅ NUEVOS ESTADOS PARA IMÁGENES
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imageDialogOpen, setImageDialogOpen] = useState(false);
+  const [loadingImages, setLoadingImages] = useState({});
 
-  // 🔧 FUNCIÓN DE PRUEBA TEMPORAL - AHORA DENTRO DEL COMPONENTE
-  const probarConexion = async () => {
-    try {
-      const result = await ApiService.testConnection();
-      console.log('✅ Conexión exitosa:', result);
-      alert(`¡Conectado! Cliente: ${result.cliente}`);
-    } catch (error) {
-      console.error('❌ Error:', error);
-      alert('Error: ' + error.message);
-    }
-  };
-
-  // ✅ VERIFICAR CONEXIÓN AL CARGAR
-  useEffect(() => {
-    checkConnection();
-  }, []);
-
-  // ✅ CARGAR DATOS CUANDO SE LOGUEA
-  useEffect(() => {
-    if (isLoggedIn) {
-      loadAllData();
-    }
-  }, [isLoggedIn]);
-
-  const checkConnection = async () => {
-    try {
-      setConnectionStatus('checking');
-      const health = await ApiService.getHealth();
-      console.log('✅ Conexión con backend:', health);
-      setConnectionStatus('connected');
-    } catch (error) {
-      console.error('❌ Error de conexión:', error);
-      setConnectionStatus('error');
-    }
-  };
-
-  const loadAllData = async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // Cargar escaneos y estadísticas en paralelo
-      const [escaneosData, statsData] = await Promise.all([
-        ApiService.getEscaneos(100, 0, false),
-        ApiService.getStats()
-      ]);
-      
-      setEscaneos(escaneosData.escaneos || []);
-      setStats(statsData.stats || null);
-      
-      console.log('✅ Datos cargados:', {
-        escaneos: escaneosData.escaneos?.length || 0,
-        stats: statsData.stats
-      });
-      
-    } catch (error) {
-      console.error('❌ Error cargando datos:', error);
-      setError('Error conectando con el servidor. Verifica tu conexión.');
-    } finally {
-      setLoading(false);
-    }
+  // ✅ TU CONFIGURACIÓN (ACTUALIZAR CON TUS DATOS REALES)
+  const API_CONFIG = {
+    baseUrl: 'https://logintec-1.onrender.com',
+    token: 'token_cliente_001_empresa_prueba_2024'
   };
 
   const handleLogin = () => {
     if (usuario && password) {
       setIsLoggedIn(true);
+      fetchEscaneos();
+      fetchStats();
     } else {
       alert('Por favor ingresa usuario y contraseña');
     }
@@ -204,109 +160,272 @@ function App() {
 
   const handleTabChange = (event, newValue) => {
     setCurrentTab(newValue);
-  };
-
-  const handleSearch = () => {
-    if (searchTerm) {
-      const filtered = escaneos.filter(escaneo => 
-        escaneo.serial.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      setEscaneos(filtered);
-    } else {
-      loadAllData(); // Recargar todos si no hay término de búsqueda
+    if (newValue === 1) { // ESCANEOS
+      fetchEscaneos();
     }
   };
 
-  const renderConnectionStatus = () => {
-    switch (connectionStatus) {
-      case 'checking':
-        return (
-          <Chip 
-            label="Verificando conexión..." 
-            color="warning" 
-            size="small"
-            icon={<CircularProgress size={16} />}
-          />
-        );
-      case 'connected':
-        return (
-          <Chip 
-            label="Conectado a Render" 
-            color="success" 
-            size="small"
-          />
-        );
-      case 'error':
-        return (
-          <Chip 
-            label="Error de conexión" 
-            color="error" 
-            size="small"
-          />
-        );
-      default:
-        return null;
+  // ✅ FUNCIÓN PARA OBTENER ESCANEOS
+  const fetchEscaneos = async (includeImages = false) => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      const url = `${API_CONFIG.baseUrl}/api/escaneos?limit=50&include_images=${includeImages}`;
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${API_CONFIG.token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setEscaneos(data.escaneos || []);
+          console.log('✅ Escaneos cargados:', data.escaneos?.length);
+        } else {
+          setError('Error en la respuesta del servidor');
+        }
+      } else {
+        setError(`Error del servidor: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Error fetching escaneos:', error);
+      setError('No se pudo conectar con el servidor');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const renderStatsCards = () => {
-    if (!stats) return null;
-
-    return (
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Typography color="textSecondary" gutterBottom>
-                Total Escaneos
-              </Typography>
-              <Typography variant="h4" component="div">
-                {stats.total_escaneos}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Typography color="textSecondary" gutterBottom>
-                Escaneos Hoy
-              </Typography>
-              <Typography variant="h4" component="div">
-                {stats.escaneos_hoy}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Typography color="textSecondary" gutterBottom>
-                Volumen Promedio
-              </Typography>
-              <Typography variant="h4" component="div">
-                {stats.volumen_promedio_cm3} cm³
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Typography color="textSecondary" gutterBottom>
-                Con Imágenes
-              </Typography>
-              <Typography variant="h4" component="div">
-                {stats.escaneos_con_imagen_3d || 0}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-    );
+  // ✅ FUNCIÓN PARA OBTENER ESTADÍSTICAS
+  const fetchStats = async () => {
+    try {
+      const response = await fetch(`${API_CONFIG.baseUrl}/api/estadisticas`, {
+        headers: {
+          'Authorization': `Bearer ${API_CONFIG.token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setStats(data.stats || {});
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
   };
 
-  // Datos fake para otras pestañas (mantenemos los existentes)
+  // ✅ NUEVA FUNCIÓN: OBTENER IMAGEN ESPECÍFICA
+  const fetchImage = async (scanId, tipo) => {
+    setLoadingImages(prev => ({...prev, [`${scanId}_${tipo}`]: true}));
+    
+    try {
+      const response = await fetch(`${API_CONFIG.baseUrl}/api/escaneo/${scanId}/imagen?tipo=${tipo}`, {
+        headers: {
+          'Authorization': `Bearer ${API_CONFIG.token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setSelectedImage({
+            base64: data.imagen_base64,
+            filename: data.filename,
+            tipo: tipo === '3d' ? 'Imagen 3D' : 'Foto de Cámara',
+            scanId: scanId,
+            serial: data.serial
+          });
+          setImageDialogOpen(true);
+        }
+      } else {
+        alert('No se pudo cargar la imagen');
+      }
+    } catch (error) {
+      console.error('Error fetching image:', error);
+      alert('Error al cargar la imagen');
+    } finally {
+      setLoadingImages(prev => ({...prev, [`${scanId}_${tipo}`]: false}));
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleString('es-AR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // ✅ COMPONENTE PARA MOSTRAR IMÁGENES
+  const ImageModal = () => (
+    <Dialog 
+      open={imageDialogOpen} 
+      onClose={() => setImageDialogOpen(false)}
+      maxWidth="lg"
+      fullWidth
+    >
+      <DialogTitle sx={{ 
+        background: 'linear-gradient(135deg, #6B2C5A 0%, #8E4B7B 100%)',
+        color: 'white',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <Typography variant="h6">
+          {selectedImage?.tipo} - {selectedImage?.filename}
+        </Typography>
+        <IconButton 
+          onClick={() => setImageDialogOpen(false)}
+          sx={{ color: 'white' }}
+        >
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent sx={{ p: 2 }}>
+        {selectedImage && (
+          <Box sx={{ textAlign: 'center' }}>
+            <img 
+              src={`data:image/jpeg;base64,${selectedImage.base64}`}
+              alt={selectedImage.filename}
+              style={{
+                maxWidth: '100%',
+                maxHeight: '70vh',
+                objectFit: 'contain',
+                borderRadius: 8,
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)'
+              }}
+            />
+            <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center', gap: 2 }}>
+              <Chip 
+                label={`Serial: ${selectedImage.serial}`} 
+                color="primary" 
+                variant="outlined" 
+              />
+              <Chip 
+                label={selectedImage.tipo} 
+                color="secondary" 
+                variant="outlined" 
+              />
+            </Box>
+          </Box>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+
+  // ✅ TABLA DE ESCANEOS MEJORADA CON IMÁGENES
+  const EscaneosTable = () => (
+    <TableContainer component={Paper} sx={{ mt: 2 }}>
+      <Table>
+        <TableHead>
+          <TableRow>
+            <TableCell><strong>Serial</strong></TableCell>
+            <TableCell><strong>Fecha</strong></TableCell>
+            <TableCell><strong>Dimensiones (mm)</strong></TableCell>
+            <TableCell><strong>Volumen (cm³)</strong></TableCell>
+            <TableCell><strong>Imágenes</strong></TableCell>
+            <TableCell><strong>Acciones</strong></TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {escaneos.map((escaneo, index) => (
+            <TableRow key={escaneo.id || index} hover>
+              <TableCell>
+                <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 500 }}>
+                  {escaneo.serial}
+                </Typography>
+              </TableCell>
+              <TableCell>{formatDate(escaneo.fecha)}</TableCell>
+              <TableCell>
+                <Typography variant="body2">
+                  {escaneo.altura} × {escaneo.ancho} × {escaneo.alto}
+                </Typography>
+              </TableCell>
+              <TableCell>
+                <Chip 
+                  label={escaneo.volumen ? `${escaneo.volumen.toFixed(2)} cm³` : 'N/A'}
+                  size="small"
+                  color="secondary"
+                  variant="outlined"
+                />
+              </TableCell>
+              <TableCell>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  {/* Botón Imagen 3D */}
+                  {(escaneo.imagen_3d || escaneo.imagen_3d_filename || escaneo.tiene_imagen_3d) && (
+                    <Tooltip title="Ver Imagen 3D">
+                      <IconButton
+                        size="small"
+                        onClick={() => fetchImage(escaneo.id, '3d')}
+                        disabled={loadingImages[`${escaneo.id}_3d`]}
+                        sx={{ 
+                          color: '#6B2C5A',
+                          '&:hover': { backgroundColor: 'rgba(107, 44, 90, 0.1)' }
+                        }}
+                      >
+                        {loadingImages[`${escaneo.id}_3d`] ? 
+                          <CircularProgress size={16} /> : 
+                          <ImageIcon fontSize="small" />
+                        }
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  
+                  {/* Botón Foto Cámara */}
+                  {(escaneo.imagen_camara || escaneo.imagen_camara_filename || escaneo.tiene_imagen_camara) && (
+                    <Tooltip title="Ver Foto de Cámara">
+                      <IconButton
+                        size="small"
+                        onClick={() => fetchImage(escaneo.id, 'camara')}
+                        disabled={loadingImages[`${escaneo.id}_camara`]}
+                        sx={{ 
+                          color: '#7CB342',
+                          '&:hover': { backgroundColor: 'rgba(124, 179, 66, 0.1)' }
+                        }}
+                      >
+                        {loadingImages[`${escaneo.id}_camara`] ? 
+                          <CircularProgress size={16} /> : 
+                          <CameraIcon fontSize="small" />
+                        }
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  
+                  {/* Indicador sin imágenes */}
+                  {!escaneo.imagen_3d && !escaneo.imagen_camara && 
+                   !escaneo.imagen_3d_filename && !escaneo.imagen_camara_filename &&
+                   !escaneo.tiene_imagen_3d && !escaneo.tiene_imagen_camara && (
+                    <Chip 
+                      label="Sin imágenes" 
+                      size="small" 
+                      variant="outlined"
+                      sx={{ color: '#666666', borderColor: '#DDDDDD' }}
+                    />
+                  )}
+                </Box>
+              </TableCell>
+              <TableCell>
+                <IconButton size="small" sx={{ color: '#6B2C5A' }}>
+                  <ViewIcon fontSize="small" />
+                </IconButton>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+
+  // ✅ MANTENER TUS DATOS FAKE PARA OTRAS PESTAÑAS
   const maquinasFake = [
     {
       nombre: "LS1000 Scanner",
@@ -316,7 +435,7 @@ function App() {
       ipAddress: "192.168.1.100",
       modelo: "LS1000",
       sitio: "Buenos Aires",
-      ultimoEscaneo: ApiService.formatDate(new Date())
+      ultimoEscaneo: formatDate(new Date())
     }
   ];
 
@@ -326,14 +445,14 @@ function App() {
       nombreCompleto: "EMPRESA_PRUEBA",
       email: "contacto@empresa-prueba.com",
       rol: "Cliente",
-      ultimoAcceso: ApiService.formatDate(new Date()),
+      ultimoAcceso: formatDate(new Date()),
       estado: "Activo"
     }
   ];
 
   const renderTabContent = () => {
     switch (currentTab) {
-      case 0:
+      case 0: // MÁQUINAS
         return (
           <div>
             <Typography variant="h5" gutterBottom>MÁQUINAS</Typography>
@@ -369,126 +488,58 @@ function App() {
             </TableContainer>
           </div>
         );
-      case 1:
+
+      case 1: // ESCANEOS (MEJORADO CON IMÁGENES)
         return (
           <div>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-              <Typography variant="h5">ESCANEOS REALES</Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h5">ESCANEOS</Typography>
               <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                {renderConnectionStatus()}
-                <Button 
-                  variant="outlined" 
-                  onClick={probarConexion}
-                  sx={{ mr: 1 }}
-                >
-                  🔧 Probar API
-                </Button>
-                <Button 
-                  variant="outlined" 
-                  onClick={loadAllData}
+                <Chip 
+                  label={`Total: ${stats.total_escaneos || 0}`}
+                  color="primary"
+                  variant="outlined"
+                />
+                <Chip 
+                  label={`Con imágenes: ${(stats.escaneos_con_imagen_3d || 0) + (stats.escaneos_con_foto || 0)}`}
+                  color="secondary"
+                  variant="outlined"
+                />
+                <Button
+                  variant="contained"
+                  startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <RefreshIcon />}
+                  onClick={() => fetchEscaneos()}
                   disabled={loading}
+                  size="small"
                 >
-                  {loading ? <CircularProgress size={20} /> : 'Actualizar'}
+                  Actualizar
                 </Button>
               </Box>
             </Box>
 
-            {/* ✅ ESTADÍSTICAS */}
-            {renderStatsCards()}
-
-            {/* ✅ ERROR */}
             {error && (
-              <Alert severity="error" sx={{ mb: 3 }}>
-                <AlertTitle>Error de Conexión</AlertTitle>
+              <Alert severity="error" sx={{ mb: 2 }}>
                 {error}
               </Alert>
             )}
 
-            {/* ✅ BÚSQUEDA */}
-            <Box sx={{ mb: 3, display: 'flex', gap: 2 }}>
-              <TextField
-                label="Buscar por número de serie"
-                variant="outlined"
-                size="small"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                sx={{ flexGrow: 1 }}
-              />
-              <Button 
-                variant="contained" 
-                onClick={handleSearch}
-                disabled={loading}
-              >
-                Buscar
-              </Button>
-            </Box>
-
-            {/* ✅ TABLA DE ESCANEOS REALES */}
-            <TableContainer component={Paper}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell><strong>ID</strong></TableCell>
-                    <TableCell><strong>Número de Serie</strong></TableCell>
-                    <TableCell><strong>Alto (cm)</strong></TableCell>
-                    <TableCell><strong>Ancho (cm)</strong></TableCell>
-                    <TableCell><strong>Largo (cm)</strong></TableCell>
-                    <TableCell><strong>Volumen (cm³)</strong></TableCell>
-                    <TableCell><strong>Fecha</strong></TableCell>
-                    <TableCell><strong>Cliente</strong></TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={8} align="center">
-                        <CircularProgress />
-                        <Typography sx={{ mt: 1 }}>Cargando escaneos...</Typography>
-                      </TableCell>
-                    </TableRow>
-                  ) : escaneos.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={8} align="center">
-                        <Typography color="textSecondary">
-                          No hay escaneos disponibles
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    escaneos.map((escaneo, index) => (
-                      <TableRow key={escaneo.id || index}>
-                        <TableCell>{escaneo.id}</TableCell>
-                        <TableCell>
-                          <strong>{escaneo.serial}</strong>
-                        </TableCell>
-                        <TableCell>{ApiService.convertToCm(escaneo.altura)}</TableCell>
-                        <TableCell>{ApiService.convertToCm(escaneo.ancho)}</TableCell>
-                        <TableCell>{ApiService.convertToCm(escaneo.alto)}</TableCell>
-                        <TableCell>
-                          {ApiService.calculateVolume(escaneo.altura, escaneo.ancho, escaneo.alto)}
-                        </TableCell>
-                        <TableCell>{ApiService.formatDate(escaneo.fecha)}</TableCell>
-                        <TableCell>
-                          <Chip label="EMPRESA_PRUEBA" color="primary" size="small" />
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-
-            {/* ✅ INFORMACIÓN ADICIONAL */}
-            {escaneos.length > 0 && (
-              <Box sx={{ mt: 2, textAlign: 'center' }}>
-                <Typography variant="body2" color="textSecondary">
-                  Mostrando {escaneos.length} escaneos • Datos en tiempo real desde Render
-                </Typography>
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress />
               </Box>
+            ) : escaneos.length === 0 ? (
+              <Paper sx={{ p: 4, textAlign: 'center' }}>
+                <Typography variant="h6" color="textSecondary">
+                  No hay escaneos disponibles
+                </Typography>
+              </Paper>
+            ) : (
+              <EscaneosTable />
             )}
           </div>
         );
-      case 2:
+
+      case 2: // USUARIOS
         return (
           <div>
             <Typography variant="h5" gutterBottom>USUARIOS</Typography>
@@ -528,6 +579,7 @@ function App() {
             </TableContainer>
           </div>
         );
+
       default:
         return (
           <Paper sx={{ p: 4, textAlign: 'center' }}>
@@ -558,7 +610,6 @@ function App() {
                 }}
                 onError={(e) => {
                   e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'block';
                 }}
               />
               <Typography 
@@ -567,12 +618,11 @@ function App() {
                   fontWeight: 700,
                   fontSize: '24px',
                   letterSpacing: '0.5px',
-                  display: 'none'
+                  flexGrow: 1
                 }}
               >
-                Logintec
+                Sistema de Gestión LS1000
               </Typography>
-              <Box sx={{ flexGrow: 1 }} />
               <Button 
                 color="inherit" 
                 onClick={() => setIsLoggedIn(false)}
@@ -609,11 +659,29 @@ function App() {
               {renderTabContent()}
             </Box>
           </Container>
+
+          {/* ✅ FAB PARA ESTADÍSTICAS */}
+          <Fab 
+            color="primary" 
+            sx={{ 
+              position: 'fixed', 
+              bottom: 16, 
+              right: 16,
+              background: 'linear-gradient(135deg, #6B2C5A 0%, #8E4B7B 100%)'
+            }}
+            onClick={fetchStats}
+          >
+            <AssessmentIcon />
+          </Fab>
+
+          {/* ✅ MODAL DE IMÁGENES */}
+          <ImageModal />
         </Box>
       </ThemeProvider>
     );
   }
 
+  // ✅ PANTALLA DE LOGIN (MANTENER TUS ESTILOS)
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ 
@@ -642,7 +710,6 @@ function App() {
               }}
               onError={(e) => {
                 e.target.style.display = 'none';
-                e.target.nextSibling.style.display = 'block';
               }}
             />
             <Typography 
