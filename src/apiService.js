@@ -14,27 +14,36 @@ const apiConfig = {
 class ApiService {
   
   // ✅ OBTENER TODOS LOS ESCANEOS
-  static async getEscaneos(limit = 100, offset = 0, includeImages = false) {
-    try {
-      const url = `${API_BASE_URL}/api/escaneos?limit=${limit}&offset=${offset}&include_images=${includeImages}`;
-      
-      const response = await fetch(url, {
-        method: 'GET',
-        ...apiConfig
-      });
-
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status} - ${response.statusText}`);
+  // ✅ OBTENER TODOS LOS ESCANEOS
+static async getEscaneos(limit = 100, offset = 0, includeImages = false) {
+  try {
+    const url = `${API_BASE_URL}/api/escaneos?limit=${limit}&offset=${offset}&include_images=${includeImages}`;
+    console.log('🔍 URL:', url);
+    console.log('🔑 Token:', API_TOKEN);
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${API_TOKEN}`
       }
+    });
 
-      const data = await response.json();
-      return data;
-      
-    } catch (error) {
-      console.error('Error obteniendo escaneos:', error);
-      throw error;
+    console.log('📡 Status:', response.status);
+
+    if (!response.ok) {
+      throw new Error(`Error: ${response.status} - ${response.statusText}`);
     }
+
+    const data = await response.json();
+    console.log('📊 Data:', data);
+    return data;
+    
+  } catch (error) {
+    console.error('Error obteniendo escaneos:', error);
+    throw error;
   }
+}
 
   // ✅ OBTENER ESTADÍSTICAS
   static async getStats() {
