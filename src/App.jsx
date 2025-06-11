@@ -3,8 +3,7 @@ import {
   Box, TextField, Button, Paper, Typography, AppBar, Toolbar,
   Tabs, Tab, Container, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, ThemeProvider, createTheme, CircularProgress,
-  Alert, AlertTitle, Chip, Card, CardContent, Grid,
-  Dialog, DialogContent, DialogTitle, IconButton, Tooltip, Fab
+  Alert, Chip, Dialog, DialogContent, DialogTitle, IconButton, Tooltip, Fab
 } from '@mui/material';
 import { 
   Visibility as ViewIcon,
@@ -14,9 +13,8 @@ import {
   Refresh as RefreshIcon,
   Assessment as AssessmentIcon
 } from '@mui/icons-material';
-import ApiService from './apiService'; // ✅ MANTENER TU SERVICIO
 
-// ✅ MANTENER EXACTAMENTE TUS COLORES
+// ✅ TUS COLORES EXACTOS
 const theme = createTheme({
   palette: {
     primary: {
@@ -131,18 +129,15 @@ function App() {
   const [usuario, setUsuario] = useState('');
   const [password, setPassword] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentTab, setCurrentTab] = useState(1); // ESCANEOS por defecto
+  const [currentTab, setCurrentTab] = useState(1);
   const [escaneos, setEscaneos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [stats, setStats] = useState({});
-  
-  // ✅ NUEVOS ESTADOS PARA IMÁGENES
   const [selectedImage, setSelectedImage] = useState(null);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [loadingImages, setLoadingImages] = useState({});
 
-  // ✅ TU CONFIGURACIÓN (ACTUALIZAR CON TUS DATOS REALES)
   const API_CONFIG = {
     baseUrl: 'https://logintec-1.onrender.com',
     token: 'token_cliente_001_empresa_prueba_2024'
@@ -160,12 +155,11 @@ function App() {
 
   const handleTabChange = (event, newValue) => {
     setCurrentTab(newValue);
-    if (newValue === 1) { // ESCANEOS
+    if (newValue === 1) {
       fetchEscaneos();
     }
   };
 
-  // ✅ FUNCIÓN PARA OBTENER ESCANEOS
   const fetchEscaneos = async (includeImages = false) => {
     setLoading(true);
     setError('');
@@ -183,7 +177,6 @@ function App() {
         const data = await response.json();
         if (data.success) {
           setEscaneos(data.escaneos || []);
-          console.log('✅ Escaneos cargados:', data.escaneos?.length);
         } else {
           setError('Error en la respuesta del servidor');
         }
@@ -191,14 +184,12 @@ function App() {
         setError(`Error del servidor: ${response.status}`);
       }
     } catch (error) {
-      console.error('Error fetching escaneos:', error);
       setError('No se pudo conectar con el servidor');
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ FUNCIÓN PARA OBTENER ESTADÍSTICAS
   const fetchStats = async () => {
     try {
       const response = await fetch(`${API_CONFIG.baseUrl}/api/estadisticas`, {
@@ -219,7 +210,6 @@ function App() {
     }
   };
 
-  // ✅ NUEVA FUNCIÓN: OBTENER IMAGEN ESPECÍFICA
   const fetchImage = async (scanId, tipo) => {
     setLoadingImages(prev => ({...prev, [`${scanId}_${tipo}`]: true}));
     
@@ -247,7 +237,6 @@ function App() {
         alert('No se pudo cargar la imagen');
       }
     } catch (error) {
-      console.error('Error fetching image:', error);
       alert('Error al cargar la imagen');
     } finally {
       setLoadingImages(prev => ({...prev, [`${scanId}_${tipo}`]: false}));
@@ -265,7 +254,6 @@ function App() {
     });
   };
 
-  // ✅ COMPONENTE PARA MOSTRAR IMÁGENES
   const ImageModal = () => (
     <Dialog 
       open={imageDialogOpen} 
@@ -322,16 +310,19 @@ function App() {
     </Dialog>
   );
 
-  // ✅ TABLA DE ESCANEOS MEJORADA CON IMÁGENES
   const EscaneosTable = () => (
     <TableContainer component={Paper} sx={{ mt: 2 }}>
       <Table>
         <TableHead>
           <TableRow>
             <TableCell><strong>Serial</strong></TableCell>
+            <TableCell><strong>Usuario</strong></TableCell>
             <TableCell><strong>Fecha</strong></TableCell>
-            <TableCell><strong>Dimensiones (mm)</strong></TableCell>
+            <TableCell><strong>Ancho (cm)</strong></TableCell>
+            <TableCell><strong>Largo (cm)</strong></TableCell>
+            <TableCell><strong>Alto (cm)</strong></TableCell>
             <TableCell><strong>Volumen (cm³)</strong></TableCell>
+            <TableCell><strong>Peso (kg)</strong></TableCell>
             <TableCell><strong>Imágenes</strong></TableCell>
             <TableCell><strong>Acciones</strong></TableCell>
           </TableRow>
@@ -344,23 +335,34 @@ function App() {
                   {escaneo.serial}
                 </Typography>
               </TableCell>
-              <TableCell>{formatDate(escaneo.fecha)}</TableCell>
               <TableCell>
-                <Typography variant="body2">
-                  {escaneo.altura} × {escaneo.ancho} × {escaneo.alto}
+                <Typography variant="body2" sx={{ color: '#6B2C5A', fontWeight: 500 }}>
+                  {escaneo.usuario_escaner || 'N/A'}
                 </Typography>
+              </TableCell>
+              <TableCell>{formatDate(escaneo.fecha)}</TableCell>
+              <TableCell sx={{ textAlign: 'center' }}>
+                {escaneo.ancho_cm || 'N/A'}
+              </TableCell>
+              <TableCell sx={{ textAlign: 'center' }}>
+                {escaneo.largo_cm || 'N/A'}
+              </TableCell>
+              <TableCell sx={{ textAlign: 'center' }}>
+                {escaneo.alto_cm || 'N/A'}
               </TableCell>
               <TableCell>
                 <Chip 
-                  label={escaneo.volumen ? `${escaneo.volumen.toFixed(2)} cm³` : 'N/A'}
+                  label={escaneo.volumen_cm3 ? `${escaneo.volumen_cm3} cm³` : 'N/A'}
                   size="small"
                   color="secondary"
                   variant="outlined"
                 />
               </TableCell>
+              <TableCell sx={{ textAlign: 'center', fontWeight: 500 }}>
+                {escaneo.peso_kg ? `${escaneo.peso_kg} kg` : 'N/A'}
+              </TableCell>
               <TableCell>
                 <Box sx={{ display: 'flex', gap: 1 }}>
-                  {/* Botón Imagen 3D */}
                   {(escaneo.imagen_3d || escaneo.imagen_3d_filename || escaneo.tiene_imagen_3d) && (
                     <Tooltip title="Ver Imagen 3D">
                       <IconButton
@@ -380,7 +382,6 @@ function App() {
                     </Tooltip>
                   )}
                   
-                  {/* Botón Foto Cámara */}
                   {(escaneo.imagen_camara || escaneo.imagen_camara_filename || escaneo.tiene_imagen_camara) && (
                     <Tooltip title="Ver Foto de Cámara">
                       <IconButton
@@ -400,7 +401,6 @@ function App() {
                     </Tooltip>
                   )}
                   
-                  {/* Indicador sin imágenes */}
                   {!escaneo.imagen_3d && !escaneo.imagen_camara && 
                    !escaneo.imagen_3d_filename && !escaneo.imagen_camara_filename &&
                    !escaneo.tiene_imagen_3d && !escaneo.tiene_imagen_camara && (
@@ -425,7 +425,6 @@ function App() {
     </TableContainer>
   );
 
-  // ✅ MANTENER TUS DATOS FAKE PARA OTRAS PESTAÑAS
   const maquinasFake = [
     {
       nombre: "LS1000 Scanner",
@@ -452,7 +451,7 @@ function App() {
 
   const renderTabContent = () => {
     switch (currentTab) {
-      case 0: // MÁQUINAS
+      case 0:
         return (
           <div>
             <Typography variant="h5" gutterBottom>MÁQUINAS</Typography>
@@ -489,7 +488,7 @@ function App() {
           </div>
         );
 
-      case 1: // ESCANEOS (MEJORADO CON IMÁGENES)
+      case 1:
         return (
           <div>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -501,7 +500,7 @@ function App() {
                   variant="outlined"
                 />
                 <Chip 
-                  label={`Con imágenes: ${(stats.escaneos_con_imagen_3d || 0) + (stats.escaneos_con_foto || 0)}`}
+                  label={`Peso promedio: ${stats.peso_promedio_kg || 0} kg`}
                   color="secondary"
                   variant="outlined"
                 />
@@ -539,7 +538,7 @@ function App() {
           </div>
         );
 
-      case 2: // USUARIOS
+      case 2:
         return (
           <div>
             <Typography variant="h5" gutterBottom>USUARIOS</Typography>
@@ -660,7 +659,6 @@ function App() {
             </Box>
           </Container>
 
-          {/* ✅ FAB PARA ESTADÍSTICAS */}
           <Fab 
             color="primary" 
             sx={{ 
@@ -674,14 +672,12 @@ function App() {
             <AssessmentIcon />
           </Fab>
 
-          {/* ✅ MODAL DE IMÁGENES */}
           <ImageModal />
         </Box>
       </ThemeProvider>
     );
   }
 
-  // ✅ PANTALLA DE LOGIN (MANTENER TUS ESTILOS)
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ 
