@@ -143,6 +143,15 @@ function App() {
     token: 'token_cliente_001_empresa_prueba_2024'
   };
 
+// Función para formatear volumen con 3 decimales totales
+const formatVolume3Decimals = (volumenCm3) => {
+  if (!volumenCm3) return 'N/A';
+
+  const volumenDm3 = volumenCm3 / 1000; // Convertir a decímetros cúbicos (dm³)
+  return `${volumenDm3.toFixed(2)} dm³`;
+};
+
+
   const handleLogin = () => {
     if (usuario && password) {
       setIsLoggedIn(true);
@@ -352,7 +361,7 @@ function App() {
               </TableCell>
               <TableCell>
                 <Chip 
-                  label={escaneo.volumen_cm3 ? `${escaneo.volumen_cm3} cm³` : 'N/A'}
+                  label={escaneo.volumen_cm3 ? formatVolume3Decimals(escaneo.volumen_cm3) : 'N/A'}
                   size="small"
                   color="secondary"
                   variant="outlined"
@@ -499,11 +508,7 @@ function App() {
                   color="primary"
                   variant="outlined"
                 />
-                <Chip 
-                  label={`Peso promedio: ${stats.peso_promedio_kg || 0} kg`}
-                  color="secondary"
-                  variant="outlined"
-                />
+                
                 <Button
                   variant="contained"
                   startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <RefreshIcon />}
