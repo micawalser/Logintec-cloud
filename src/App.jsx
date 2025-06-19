@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState,  } from 'react';
 import { 
   Box, TextField, Button, Paper, Typography, AppBar, Toolbar,
   Tabs, Tab, Container, Table, TableBody, TableCell, TableContainer,
@@ -625,7 +625,7 @@ const formatVolume3Decimals = (volumenCm3) => {
                   flexGrow: 1
                 }}
               >
-                Sistema de Gestión LS1000
+                
               </Typography>
               <Button 
                 color="inherit" 
