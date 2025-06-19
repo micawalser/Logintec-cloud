@@ -1,169 +1,99 @@
-// apiService.js - Servicio para conectar con tu backend en Renderr
+import axios from 'axios';
 
-const API_BASE_URL = 'https://logintec-1.onrender.com';
-const API_TOKEN = 'token_cliente_001_empresa_prueba_2024';
-
-// Configuración base para todas las peticiones
-const apiConfig = {
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${API_TOKEN}`
-  }
-};
+// La URL de tu backend. Para desarrollo, apunta al servidor local.
+const API_BASE_URL = 'http://127.0.0.1:8000';
 
 class ApiService {
-  
-  // ✅ OBTENER TODOS LOS ESCANEOS
-  // ✅ OBTENER TODOS LOS ESCANEOS
-static async getEscaneos(limit = 100, offset = 0, includeImages = false) {
-  try {
-    const url = `${API_BASE_URL}/api/escaneos?limit=${limit}&offset=${offset}&include_images=${includeImages}`;
-    console.log('🔍 URL:', url);
-    console.log('🔑 Token:', API_TOKEN);
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${API_TOKEN}`
-      }
+
+  /**
+   * ✅ Realiza el login del usuario.
+   * Si es exitoso, guarda el token y los datos del usuario en localStorage.
+   * @param {string} email - El email del usuario.
+   * @param {string} password - La contraseña del usuario.
+   * @returns {Promise<object|null>} Los datos del usuario o null si falla.
+   */
+  static async login(email, password) {
+    // El backend de FastAPI espera los datos en este formato, no como JSON.
+    const params = new URLSearchParams();
+    params.append('username', email);
+    params.append('password', password);
+
+    const response = await axios.post(`${API_BASE_URL}/auth/token`, params, {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
-
-    console.log('📡 Status:', response.status);
-
-    if (!response.ok) {
-      throw new Error(`Error: ${response.status} - ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    console.log('📊 Data:', data);
-    return data;
     
-  } catch (error) {
-    console.error('Error obteniendo escaneos:', error);
-    throw error;
+    if (response.data.access_token) {
+      localStorage.setItem('authToken', response.data.access_token);
+      
+      // Inmediatamente después del login, obtenemos los datos del usuario.
+      const userDetails = await this.getCurrentUser();
+      localStorage.setItem('userData', JSON.stringify(userDetails));
+      return userDetails;
+    }
+    return null;
   }
-}
+  
+  /**
+   * ✅ Cierra la sesión del usuario, borrando sus datos del navegador.
+   */
+  static logout() {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('userData');
+  }
 
-  // ✅ OBTENER ESTADÍSTICAS
+  /**
+   * ✅ Obtiene los headers de autenticación con el token del usuario.
+   * @returns {object} Los headers para las peticiones a la API.
+   */
+  static getAuthHeaders() {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      throw new Error("No hay token de autenticación.");
+    }
+    return {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    };
+  }
+
+  /**
+   * ✅ Obtiene los datos del usuario actualmente logueado.
+   */
+  static async getCurrentUser() {
+    const response = await axios.get(`${API_BASE_URL}/api/cloud/me`, {
+        headers: this.getAuthHeaders()
+    });
+    return response.data;
+  }
+
+  /**
+   * ✅ Obtiene la lista de escaneos del usuario logueado.
+   */
+  static async getEscaneos(limit = 100) {
+    const response = await axios.get(`${API_BASE_URL}/api/cloud/escaneos?limit=${limit}`, {
+      headers: this.getAuthHeaders()
+    });
+    return response.data;
+  }
+
+  /**
+   * ✅ Obtiene las estadísticas del usuario logueado.
+   */
   static async getStats() {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/stats`, {
-        method: 'GET',
-        ...apiConfig
-      });
-
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status} - ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      return data;
-      
-    } catch (error) {
-      console.error('Error obteniendo estadísticas:', error);
-      throw error;
-    }
+    const response = await axios.get(`${API_BASE_URL}/api/cloud/estadisticas`, {
+      headers: this.getAuthHeaders()
+    });
+    return response.data;
   }
 
-  // ✅ OBTENER IMAGEN DE UN ESCANEO
+  /**
+   * ✅ Obtiene una imagen específica de un escaneo.
+   */
   static async getImagen(scanId, tipo) {
-    try {
-      // tipo puede ser "3d" o "camara"
-      const response = await fetch(`${API_BASE_URL}/api/escaneo/${scanId}/imagen/${tipo}`, {
-        method: 'GET',
-        ...apiConfig
-      });
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          return null; // Imagen no disponible
-        }
-        throw new Error(`Error: ${response.status} - ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      return data;
-      
-    } catch (error) {
-      console.error(`Error obteniendo imagen ${tipo}:`, error);
-      return null;
-    }
-  }
-
-  // ✅ PROBAR CONEXIÓN
-  static async testConnection() {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/test_connection`, {
-        method: 'POST',
-        ...apiConfig
-      });
-
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status} - ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      return data;
-      
-    } catch (error) {
-      console.error('Error probando conexión:', error);
-      throw error;
-    }
-  }
-
-  // ✅ OBTENER ESTADO GENERAL (endpoint público)
-  static async getHealth() {
-    try {
-      const response = await fetch(`${API_BASE_URL}/`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status} - ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      return data;
-      
-    } catch (error) {
-      console.error('Error obteniendo estado:', error);
-      throw error;
-    }
-  }
-
-  // ✅ FORMATEAR FECHA PARA MOSTRAR
-  static formatDate(dateString) {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleString('es-ES', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      });
-    } catch (error) {
-      return dateString; // Devolver original si hay error
-    }
-  }
-
-  // ✅ CONVERTIR DIMENSIONES DE MM A CM
-  static convertToCm(mmValue) {
-    return (mmValue / 10).toFixed(1);
-  }
-
-  // ✅ CALCULAR VOLUMEN EN CM³
-  static calculateVolume(altura, ancho, alto) {
-    // Convertir de mm a cm y calcular volumen
-    const alturaM = altura / 10;
-    const anchoM = ancho / 10;
-    const altoM = alto / 10;
-    return (alturaM * anchoM * altoM).toFixed(0);
+     const response = await axios.get(`${API_BASE_URL}/api/cloud/escaneo/${scanId}/imagen?tipo=${tipo}`, { 
+        headers: this.getAuthHeaders() 
+    });
+    return response.data;
   }
 }
 
