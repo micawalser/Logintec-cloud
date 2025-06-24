@@ -188,9 +188,38 @@ function App() {
   }, [isLoggedIn, currentTab, fetchEscaneos, fetchStats]);
 
   // === FUNCIONES DE FORMATEO ===
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString('es-AR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const formatDate = (dateInput) => {
+    if (!dateInput) return 'N/A';
+
+    let date;
+
+    if (typeof dateInput === 'string') {
+      // The backend provides a date/time string in UTC.
+      // We need to ensure JavaScript parses it as UTC.
+      // A standard ISO 8601 format with a 'Z' is the most reliable way.
+      // e.g., "2025-06-24 18:28:00" becomes "2025-06-24T18:28:00Z"
+      const isoUtcDateTime = dateInput.replace(' ', 'T') + 'Z';
+      date = new Date(isoUtcDateTime);
+    } else {
+      // Assumes dateInput is a Date object
+      date = new Date(dateInput);
+    }
+
+    // If parsing fails, return a message.
+    if (isNaN(date.getTime())) {
+      console.error("Invalid date received:", dateInput);
+      return 'Fecha inválida';
+    }
+
+    return date.toLocaleString('es-AR', {
+      timeZone: 'America/Argentina/Buenos_Aires',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23' // This forces 24-hour format (e.g., 15:28)
+    });
   };
 
   const formatVolume3Decimals = (volumenMm3) => {
