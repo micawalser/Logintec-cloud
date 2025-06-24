@@ -104,45 +104,141 @@ function App() {
     'Authorization': `Bearer ${localStorage.getItem('authToken')}`
   });
   
-  // === LÓGICA DE DATOS ===
+  // ✅ CORRECCIÓN 1: Función para obtener el usuario correctamente
+  const getUsuarioValue = (escaneo) => {
+    // Priorizar campos de usuario en este orden
+    const campos = [
+      'usuario_escaneo',  // ✅ CORRECTO - este es el campo del backend
+      'usuario_escaner',  // legacy
+      'usuario_scanner', 
+      'usuario',
+      'user_name',
+      'username',
+      'nombre_usuario'
+    ];
+    
+    for (const campo of campos) {
+      if (escaneo[campo] && escaneo[campo] !== '' && escaneo[campo] !== null && escaneo[campo] !== 'No especificado') {
+        return escaneo[campo];
+      }
+    }
+    
+    return 'Usuario desconocido';
+  };
+
+  // ✅ CORRECCIÓN 2: Función hasImage mejorada y con debugging
+  const hasImage = (escaneo, tipo) => {
+    let result = false;
+    let debugInfo = {};
+
+    if (tipo === '3d') {
+      const tieneFlag = escaneo.tiene_imagen_3d;
+      const imagen = escaneo.imagen_3d;
+      const filename = escaneo.imagen_3d_filename;
+      
+      debugInfo = {
+        tiene_imagen_3d: tieneFlag,
+        imagen_3d_exists: !!imagen,
+        imagen_3d_length: imagen ? imagen.length : 0,
+        imagen_3d_filename: filename
+      };
+      
+      // Verificar múltiples condiciones
+      result = tieneFlag === true || 
+               tieneFlag === 1 ||
+               (imagen && imagen.length > 0) || 
+               (filename && filename !== '' && filename !== null);
+      
+    } else if (tipo === 'camara') {
+      const tieneFlag = escaneo.tiene_imagen_camara;
+      const imagen = escaneo.imagen_camara;
+      const filename = escaneo.imagen_camara_filename;
+      
+      debugInfo = {
+        tiene_imagen_camara: tieneFlag,
+        imagen_camara_exists: !!imagen,
+        imagen_camara_length: imagen ? imagen.length : 0,
+        imagen_camara_filename: filename
+      };
+      
+      // Verificar múltiples condiciones
+      result = tieneFlag === true || 
+               tieneFlag === 1 ||
+               (imagen && imagen.length > 0) || 
+               (filename && filename !== '' && filename !== null);
+    }
+
+    // Debug solo para los primeros 3 escaneos
+    if (escaneos.indexOf(escaneo) < 3) {
+      console.log(`🔍 Escaneo ${escaneo.serial} - Imagen ${tipo}:`, debugInfo, 'Resultado:', result);
+    }
+
+    return result;
+  };
+
+  // ✅ CORRECCIÓN 3: fetchEscaneos con debugging mejorado
   const fetchEscaneos = useCallback(async () => {
     if (!isLoggedIn) return;
     setLoading(true);
     setError('');
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/cloud/escaneos`, { headers: getAuthHeaders() });
+      console.log('🚀 Iniciando carga de escaneos...');
+      const response = await axios.get(`${API_BASE_URL}/api/cloud/escaneos`, { 
+        headers: getAuthHeaders() 
+      });
       
-      // ✅ DEBUG: Buscar SOLO los escaneos que SÍ tienen imágenes
-      const escaneosConImagenes = response.data.filter(escaneo => 
-        escaneo.imagen_3d || escaneo.imagen_camara || 
-        escaneo.imagen_3d_filename || escaneo.imagen_camara_filename ||
-        escaneo.tiene_imagen_3d || escaneo.tiene_imagen_camara
-      );
+      console.log('📊 ANÁLISIS COMPLETO DE ESCANEOS:');
+      console.log(`📊 Total escaneos recibidos: ${response.data.length}`);
       
-      console.log(`📊 Total escaneos: ${response.data.length}`);
-      console.log(`🖼️ Escaneos CON imágenes: ${escaneosConImagenes.length}`);
-      
-      if (escaneosConImagenes.length > 0) {
-        console.log('🎯 ESCANEOS CON IMÁGENES ENCONTRADOS:');
-        escaneosConImagenes.forEach(escaneo => {
-          console.log(`📷 Escaneo ${escaneo.serial} (ID: ${escaneo.id}):`, {
-            tiene_imagen_3d: escaneo.tiene_imagen_3d,
-            tiene_imagen_camara: escaneo.tiene_imagen_camara,
-            imagen_3d_existe: !!escaneo.imagen_3d,
-            imagen_camara_existe: !!escaneo.imagen_camara,
-            imagen_3d_filename: escaneo.imagen_3d_filename,
-            imagen_camara_filename: escaneo.imagen_camara_filename
-          });
-        });
-      } else {
-        console.log('❌ NO se encontraron escaneos con imágenes en los datos recibidos');
-        console.log('🔍 Verificar si el backend está devolviendo TODOS los escaneos...');
+      if (response.data.length === 0) {
+        console.log('⚠️ No se recibieron escaneos');
+        setEscaneos([]);
+        return;
       }
+
+      // Analizar campos de imágenes y usuarios
+      let con3D = 0, conCamara = 0, sinImagenes = 0;
+      let conUsuario = 0, sinUsuario = 0;
+      
+      response.data.forEach((escaneo, index) => {
+        const tiene3D = hasImage(escaneo, '3d');
+        const tieneCamara = hasImage(escaneo, 'camara');
+        const usuario = getUsuarioValue(escaneo);
+        
+        if (tiene3D) con3D++;
+        if (tieneCamara) conCamara++;
+        if (!tiene3D && !tieneCamara) sinImagenes++;
+        
+        if (usuario !== 'Usuario desconocido') conUsuario++;
+        else sinUsuario++;
+        
+        // Debug detallado de los primeros 3 escaneos
+        if (index < 3) {
+          console.log(`📷 Escaneo ${escaneo.serial || escaneo.id}:`, {
+            usuario: usuario,
+            tiene_imagen_3d_flag: escaneo.tiene_imagen_3d,
+            tiene_imagen_camara_flag: escaneo.tiene_imagen_camara,
+            imagen_3d_filename: escaneo.imagen_3d_filename,
+            imagen_camara_filename: escaneo.imagen_camara_filename,
+            usuario_escaneo: escaneo.usuario_escaneo,
+            resultado_3d: tiene3D,
+            resultado_camara: tieneCamara
+          });
+        }
+      });
+      
+      console.log(`📈 RESUMEN DE IMÁGENES:`);
+      console.log(`   Con imagen 3D: ${con3D}`);
+      console.log(`   Con imagen cámara: ${conCamara}`);
+      console.log(`   Sin imágenes: ${sinImagenes}`);
+      console.log(`📈 RESUMEN DE USUARIOS:`);
+      console.log(`   Con usuario: ${conUsuario}`);
+      console.log(`   Sin usuario: ${sinUsuario}`);
       
       setEscaneos(response.data || []);
     } catch (err) {
       setError('No se pudo cargar la lista de escaneos.');
-      console.error('Error fetching escaneos:', err);
+      console.error('❌ Error fetching escaneos:', err);
     } finally {
       setLoading(false);
     }
@@ -158,59 +254,99 @@ function App() {
     }
   }, [isLoggedIn]);
 
+  // ✅ CORRECCIÓN 4: fetchImage con mejor manejo de errores
   const fetchImage = async (scanId, tipo) => {
     setLoadingImages(prev => ({...prev, [`${scanId}_${tipo}`]: true}));
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/cloud/escaneo/${scanId}/imagen?tipo=${tipo}`, { headers: getAuthHeaders() });
-      if (response.data.success) {
+      console.log(`🖼️ Solicitando imagen: scanId=${scanId}, tipo=${tipo}`);
+      
+      const response = await axios.get(
+        `${API_BASE_URL}/api/cloud/escaneo/${scanId}/imagen?tipo=${tipo}`, 
+        { 
+          headers: getAuthHeaders(),
+          timeout: 30000 // 30 segundos timeout
+        }
+      );
+      
+      console.log(`✅ Respuesta imagen recibida:`, {
+        success: response.data.success,
+        has_base64: !!response.data.imagen_base64,
+        filename: response.data.filename
+      });
+      
+      if (response.data.success && response.data.imagen_base64) {
         setSelectedImage({
           base64: response.data.imagen_base64,
-          filename: response.data.filename,
+          filename: response.data.filename || `imagen_${tipo}_${scanId}`,
           tipo: tipo === '3d' ? 'Imagen 3D' : 'Foto de Cámara',
           scanId: scanId,
-          serial: response.data.serial
+          serial: response.data.serial || 'N/A'
         });
         setImageDialogOpen(true);
+      } else {
+        console.error('❌ Respuesta inválida:', response.data);
+        alert(`No se pudo cargar la imagen ${tipo}. El servidor no devolvió una imagen válida.`);
       }
     } catch (err) {
-      alert('Error al cargar la imagen.');
-      console.error(err);
+      console.error(`❌ Error cargando imagen ${tipo}:`, err);
+      if (err.code === 'ECONNABORTED') {
+        alert('Timeout: La imagen tardó demasiado en cargar');
+      } else if (err.response?.status === 404) {
+        alert(`Imagen ${tipo} no encontrada en el servidor`);
+      } else if (err.response?.status === 403) {
+        alert(`Sin permisos para acceder a la imagen ${tipo}`);
+      } else {
+        alert(`Error al cargar la imagen ${tipo}: ${err.message}`);
+      }
     } finally {
       setLoadingImages(prev => ({...prev, [`${scanId}_${tipo}`]: false}));
     }
   };
+
+  // ✅ CORRECCIÓN 5: Función de prueba de conectividad
+  const testBackendConnection = async () => {
+    try {
+      console.log('🔧 Probando conexión con backend...');
+      const response = await axios.get(`${API_BASE_URL}/api/cloud/me`, { 
+        headers: getAuthHeaders() 
+      });
+      console.log('✅ Backend conectado:', response.data);
+      return true;
+    } catch (err) {
+      console.error('❌ Error de conexión backend:', err);
+      return false;
+    }
+  };
   
+  // ✅ CORRECCIÓN 6: useEffect mejorado con diagnóstico
   useEffect(() => {
     if (isLoggedIn) {
-      if(currentTab === 1) fetchEscaneos();
-      if(currentTab === 0 || currentTab === 1) fetchStats();
+      console.log('🚀 Iniciando carga de datos...');
+      testBackendConnection().then(connected => {
+        if (connected) {
+          if(currentTab === 1) fetchEscaneos();
+          if(currentTab === 0 || currentTab === 1) fetchStats();
+        } else {
+          setError('No se puede conectar con el servidor');
+        }
+      });
     }
   }, [isLoggedIn, currentTab, fetchEscaneos, fetchStats]);
 
   // === FUNCIONES DE FORMATEO ===
   const formatDate = (dateInput) => {
     if (!dateInput) return 'N/A';
-
     let date;
-
     if (typeof dateInput === 'string') {
-      // The backend provides a date/time string in UTC.
-      // We need to ensure JavaScript parses it as UTC.
-      // A standard ISO 8601 format with a 'Z' is the most reliable way.
-      // e.g., "2025-06-24 18:28:00" becomes "2025-06-24T18:28:00Z"
       const isoUtcDateTime = dateInput.replace(' ', 'T') + 'Z';
       date = new Date(isoUtcDateTime);
     } else {
-      // Assumes dateInput is a Date object
       date = new Date(dateInput);
     }
-
-    // If parsing fails, return a message.
     if (isNaN(date.getTime())) {
       console.error("Invalid date received:", dateInput);
       return 'Fecha inválida';
     }
-
     return date.toLocaleString('es-AR', {
       timeZone: 'America/Argentina/Buenos_Aires',
       year: 'numeric',
@@ -218,8 +354,15 @@ function App() {
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
-      hourCycle: 'h23' // This forces 24-hour format (e.g., 15:28)
+      hourCycle: 'h23'
     });
+  };
+
+  const formatDimensionCm = (mmValue) => {
+    if (mmValue === null || mmValue === undefined || mmValue === '') return 'N/A';
+    const numValue = parseFloat(mmValue);
+    if (isNaN(numValue)) return mmValue;
+    return (numValue / 10).toFixed(1);
   };
 
   const formatVolume3Decimals = (volumenMm3) => {
@@ -229,73 +372,27 @@ function App() {
   };
 
   const calculateVolume = (escaneo) => {
-    if (escaneo.volumen) {
-      return escaneo.volumen;
-    }
-    
+    if (escaneo.volumen) return escaneo.volumen;
     const ancho = escaneo.ancho || 0;
     const altura = escaneo.altura || escaneo.alto || 0;
     const largo = escaneo.largo || 0;
-    
-    if (ancho && altura && largo) {
-      return ancho * altura * largo;
-    }
-    
+    if (ancho && altura && largo) return ancho * altura * largo;
     return null;
-  };
-
-  const getLargoValue = (escaneo) => {
-    if (escaneo.largo !== null && escaneo.largo !== undefined) {
-      return escaneo.largo;
-    }
-    
-    if (escaneo.alto !== null && escaneo.alto !== undefined) {
-      return `${escaneo.alto}*`;
-    }
-    
-    return 'N/A';
   };
 
   const getSafeValue = (escaneo, field, defaultValue = 'N/A') => {
     const value = escaneo[field];
-    if (value !== undefined && value !== null && value !== '') {
-      return value;
-    }
-    return defaultValue;
+    return (value !== undefined && value !== null && value !== '') ? value : defaultValue;
   };
-
-  const hasImage = (escaneo, tipo) => {
-    if (tipo === '3d') {
-      const tieneFlag = escaneo.tiene_imagen_3d;
-      const imagen = escaneo.imagen_3d;
-      const filename = escaneo.imagen_3d_filename;
-      
-      // ✅ DEBUG: Ver exactamente qué hay en cada campo
-      console.log(`🔍 Escaneo ${escaneo.serial} - Imagen 3D:`, {
-        tieneFlag: tieneFlag,
-        imagen_existe: !!imagen,
-        imagen_length: imagen ? imagen.length : 0,
-        filename: filename
-      });
-      
-      return tieneFlag === true || !!imagen || !!filename;
-      
-    } else if (tipo === 'camara') {
-      const tieneFlag = escaneo.tiene_imagen_camara;
-      const imagen = escaneo.imagen_camara;
-      const filename = escaneo.imagen_camara_filename;
-      
-      // ✅ DEBUG: Ver exactamente qué hay en cada campo
-      console.log(`🔍 Escaneo ${escaneo.serial} - Imagen Cámara:`, {
-        tieneFlag: tieneFlag,
-        imagen_existe: !!imagen,
-        imagen_length: imagen ? imagen.length : 0,
-        filename: filename
-      });
-      
-      return tieneFlag === true || !!imagen || !!filename;
-    }
-    return false;
+  
+  const getLargoValueCm = (escaneo) => {
+    const largo = getSafeValue(escaneo, 'largo', null);
+    if (largo !== null) return formatDimensionCm(largo);
+    
+    const altoAsLargo = getSafeValue(escaneo, 'alto', null);
+    if (altoAsLargo !== null) return `${formatDimensionCm(altoAsLargo)}*`;
+    
+    return 'N/A';
   };
 
   // === COMPONENTES VISUALES ===
@@ -328,12 +425,12 @@ function App() {
       <Table>
         <TableHead>
           <TableRow>
-            <TableCell><strong>Serial</strong></TableCell>
+            <TableCell sx={{ width: '15%', whiteSpace: 'nowrap' }}><strong>Serial</strong></TableCell>
             <TableCell><strong>Usuario</strong></TableCell>
-            <TableCell><strong>Fecha</strong></TableCell>
-            <TableCell><strong>Ancho (mm)</strong></TableCell>
-            <TableCell><strong>Largo (mm)</strong></TableCell>
-            <TableCell><strong>Alto (mm)</strong></TableCell>
+            <TableCell sx={{ whiteSpace: 'nowrap' }}><strong>Fecha</strong></TableCell>
+            <TableCell><strong>Ancho (cm)</strong></TableCell>
+            <TableCell><strong>Largo (cm)</strong></TableCell>
+            <TableCell><strong>Alto (cm)</strong></TableCell>
             <TableCell><strong>Volumen (dm³)</strong></TableCell>
             <TableCell><strong>Peso (kg)</strong></TableCell>
             <TableCell><strong>Imágenes</strong></TableCell>
@@ -349,19 +446,19 @@ function App() {
                 </Typography>
               </TableCell>
               <TableCell>
-                <Typography variant="body2" sx={{ color: '#6B2C5A', fontWeight: 500 }}>
-                  {getSafeValue(escaneo, 'usuario_escaner') || getSafeValue(escaneo, 'usuario')}
+                <Typography variant="body2" sx={{ color: '#6B2C5A', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                  {getUsuarioValue(escaneo)}
                 </Typography>
               </TableCell>
-              <TableCell>{formatDate(escaneo.fecha)}</TableCell>
+              <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDate(escaneo.fecha)}</TableCell>
               <TableCell sx={{ textAlign: 'center' }}>
-                {getSafeValue(escaneo, 'ancho')}
+                {formatDimensionCm(getSafeValue(escaneo, 'ancho'))}
               </TableCell>
               <TableCell sx={{ textAlign: 'center' }}>
-                {getLargoValue(escaneo)}
+                {getLargoValueCm(escaneo)}
               </TableCell>
               <TableCell sx={{ textAlign: 'center' }}>
-                {getSafeValue(escaneo, 'altura') || getSafeValue(escaneo, 'alto')}
+                {formatDimensionCm(getSafeValue(escaneo, 'altura') || getSafeValue(escaneo, 'alto'))}
               </TableCell>
               <TableCell>
                 <Chip 
@@ -375,27 +472,17 @@ function App() {
                 {escaneo.peso_kg || escaneo.peso ? `${escaneo.peso_kg || escaneo.peso} kg` : 'N/A'}
               </TableCell>
               <TableCell>
-                <Box sx={{ display: 'flex', gap: 1 }}>
+                <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
                   {hasImage(escaneo, '3d') && (
                     <Tooltip title="Ver Imagen 3D">
-                      <IconButton 
-                        size="small" 
-                        onClick={() => fetchImage(escaneo.id, '3d')} 
-                        disabled={loadingImages[`${escaneo.id}_3d`]} 
-                        sx={{ color: '#6B2C5A' }}
-                      >
+                      <IconButton size="small" onClick={() => fetchImage(escaneo.id, '3d')} disabled={loadingImages[`${escaneo.id}_3d`]} sx={{ color: '#6B2C5A' }}>
                         {loadingImages[`${escaneo.id}_3d`] ? <CircularProgress size={16} /> : <ImageIcon fontSize="small" />}
                       </IconButton>
                     </Tooltip>
                   )}
                   {hasImage(escaneo, 'camara') && (
                     <Tooltip title="Ver Foto de Cámara">
-                      <IconButton 
-                        size="small" 
-                        onClick={() => fetchImage(escaneo.id, 'camara')} 
-                        disabled={loadingImages[`${escaneo.id}_camara`]} 
-                        sx={{ color: '#7CB342' }}
-                      >
+                      <IconButton size="small" onClick={() => fetchImage(escaneo.id, 'camara')} disabled={loadingImages[`${escaneo.id}_camara`]} sx={{ color: '#7CB342' }}>
                         {loadingImages[`${escaneo.id}_camara`] ? <CircularProgress size={16} /> : <CameraIcon fontSize="small" />}
                       </IconButton>
                     </Tooltip>
@@ -464,38 +551,25 @@ function App() {
             <Typography variant="h5">ESCANEOS</Typography>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
               <Chip label={`Total: ${stats.total_escaneos || 0}`} color="primary" variant="outlined" />
-              <Button 
-                variant="contained" 
-                startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <RefreshIcon />} 
-                onClick={fetchEscaneos} 
-                disabled={loading} 
-                size="small"
-              >
+              <Button variant="contained" startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <RefreshIcon />} onClick={fetchEscaneos} disabled={loading} size="small">
                 Actualizar
               </Button>
             </Box>
           </Box>
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
-          )}
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-              <CircularProgress />
-            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
           ) : escaneos.length === 0 ? (
             <Paper sx={{ p: 4, textAlign: 'center' }}>
               <Typography variant="h6" color="textSecondary">No hay escaneos disponibles</Typography>
-              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                Verifica que tu usuario tenga escaneos asociados
-              </Typography>
+              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>Verifica que tu usuario tenga escaneos asociados</Typography>
             </Paper>
           ) : (
             <>
               <EscaneosTable />
               <Box sx={{ mt: 2, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
                 <Typography variant="body2" color="textSecondary">
-                  <strong>*</strong> Los valores con asterisco (*) son estimados desde datos legacy.
-                  Los nuevos escaneos mostrarán valores exactos de largo.
+                  <strong>*</strong> Los valores con asterisco (*) son estimados desde datos legacy. Los nuevos escaneos mostrarán valores exactos de largo.
                 </Typography>
               </Box>
             </>
