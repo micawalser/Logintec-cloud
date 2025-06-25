@@ -13,7 +13,9 @@ import {
   Close as CloseIcon,
   Refresh as RefreshIcon,
   Assessment as AssessmentIcon,
-  Logout as LogoutIcon
+  Logout as LogoutIcon,
+  Search as SearchIcon,
+  Clear as ClearIcon
 } from '@mui/icons-material';
 
 // ✅ TU TEMA (SIN CAMBIOS)
@@ -65,12 +67,16 @@ function App() {
   // Estados del dashboard
   const [currentTab, setCurrentTab] = useState(1);
   const [escaneos, setEscaneos] = useState([]);
+  const [escaneosFiltrados, setEscaneosFiltrados] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [stats, setStats] = useState({});
   const [selectedImage, setSelectedImage] = useState(null);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [loadingImages, setLoadingImages] = useState({});
+  
+  // Estado para búsqueda por SN
+  const [searchSN, setSearchSN] = useState('');
 
   // URL base de tu API
   const API_BASE_URL = 'https://logintec-1.onrender.com';
@@ -97,19 +103,20 @@ function App() {
     localStorage.removeItem('authToken');
     setIsLoggedIn(false);
     setEscaneos([]);
+    setEscaneosFiltrados([]);
     setStats({});
+    setSearchSN('');
   };
 
   const getAuthHeaders = () => ({
     'Authorization': `Bearer ${localStorage.getItem('authToken')}`
   });
   
-  // ✅ CORRECCIÓN 1: Función para obtener el usuario correctamente
-  const getUsuarioValue = (escaneo) => {
-    // Priorizar campos de usuario en este orden
+  // Función para obtener el usuario correctamente
+  const getUsuarioValue = useCallback((escaneo) => {
     const campos = [
-      'usuario_escaneo',  // ✅ CORRECTO - este es el campo del backend
-      'usuario_escaner',  // legacy
+      'usuario_escaneo',
+      'usuario_escaner',
       'usuario_scanner', 
       'usuario',
       'user_name',
@@ -124,26 +131,22 @@ function App() {
     }
     
     return 'Usuario desconocido';
-  };
+  }, []);
 
-  // ✅ CORRECCIÓN 2: Función hasImage mejorada y con debugging
-  const hasImage = (escaneo, tipo) => {
+  // ========================================================================
+  // === ✅ CORRECCIÓN APLICADA AQUÍ ===
+  // Se ha quitado [escaneos] del array de dependencias para evitar el bucle.
+  // La función ahora no depende de ningún estado y no se volverá a crear
+  // innecesariamente.
+  // ========================================================================
+  const hasImage = useCallback((escaneo, tipo) => {
     let result = false;
-    let debugInfo = {};
 
     if (tipo === '3d') {
       const tieneFlag = escaneo.tiene_imagen_3d;
       const imagen = escaneo.imagen_3d;
       const filename = escaneo.imagen_3d_filename;
       
-      debugInfo = {
-        tiene_imagen_3d: tieneFlag,
-        imagen_3d_exists: !!imagen,
-        imagen_3d_length: imagen ? imagen.length : 0,
-        imagen_3d_filename: filename
-      };
-      
-      // Verificar múltiples condiciones
       result = tieneFlag === true || 
                tieneFlag === 1 ||
                (imagen && imagen.length > 0) || 
@@ -154,29 +157,31 @@ function App() {
       const imagen = escaneo.imagen_camara;
       const filename = escaneo.imagen_camara_filename;
       
-      debugInfo = {
-        tiene_imagen_camara: tieneFlag,
-        imagen_camara_exists: !!imagen,
-        imagen_camara_length: imagen ? imagen.length : 0,
-        imagen_camara_filename: filename
-      };
-      
-      // Verificar múltiples condiciones
       result = tieneFlag === true || 
                tieneFlag === 1 ||
                (imagen && imagen.length > 0) || 
                (filename && filename !== '' && filename !== null);
     }
 
-    // Debug solo para los primeros 3 escaneos
-    if (escaneos.indexOf(escaneo) < 3) {
-      console.log(`🔍 Escaneo ${escaneo.serial} - Imagen ${tipo}:`, debugInfo, 'Resultado:', result);
-    }
-
     return result;
-  };
+  }, []); // <-- ¡CORREGIDO! Array de dependencias vacío.
 
-  // ✅ CORRECCIÓN 3: fetchEscaneos con debugging mejorado
+  // Función de prueba de conectividad
+  const testBackendConnection = useCallback(async () => {
+    try {
+      console.log('🔧 Probando conexión con backend...');
+      const response = await axios.get(`${API_BASE_URL}/api/cloud/me`, { 
+        headers: getAuthHeaders() 
+      });
+      console.log('✅ Backend conectado:', response.data);
+      return true;
+    } catch (err) {
+      console.error('❌ Error de conexión backend:', err);
+      return false;
+    }
+  }, []);
+
+  // fetchEscaneos con debugging mejorado
   const fetchEscaneos = useCallback(async () => {
     if (!isLoggedIn) return;
     setLoading(true);
@@ -193,6 +198,7 @@ function App() {
       if (response.data.length === 0) {
         console.log('⚠️ No se recibieron escaneos');
         setEscaneos([]);
+        setEscaneosFiltrados([]);
         return;
       }
 
@@ -212,7 +218,6 @@ function App() {
         if (usuario !== 'Usuario desconocido') conUsuario++;
         else sinUsuario++;
         
-        // Debug detallado de los primeros 3 escaneos
         if (index < 3) {
           console.log(`📷 Escaneo ${escaneo.serial || escaneo.id}:`, {
             usuario: usuario,
@@ -236,13 +241,14 @@ function App() {
       console.log(`   Sin usuario: ${sinUsuario}`);
       
       setEscaneos(response.data || []);
+      setEscaneosFiltrados(response.data || []);
     } catch (err) {
       setError('No se pudo cargar la lista de escaneos.');
       console.error('❌ Error fetching escaneos:', err);
     } finally {
       setLoading(false);
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, hasImage, getUsuarioValue]);
 
   const fetchStats = useCallback(async () => {
     if (!isLoggedIn) return;
@@ -254,7 +260,28 @@ function App() {
     }
   }, [isLoggedIn]);
 
-  // ✅ CORRECCIÓN 4: fetchImage con mejor manejo de errores
+  // Función para filtrar escaneos por SN
+  const filtrarEscaneosPorSN = useCallback((terminoBusqueda) => {
+    if (!terminoBusqueda.trim()) {
+      setEscaneosFiltrados(escaneos);
+      return;
+    }
+    
+    const filtrados = escaneos.filter(escaneo => 
+      escaneo.serial && 
+      escaneo.serial.toLowerCase().includes(terminoBusqueda.toLowerCase())
+    );
+    
+    setEscaneosFiltrados(filtrados);
+    console.log(`🔍 Búsqueda SN: "${terminoBusqueda}" - Encontrados: ${filtrados.length}/${escaneos.length}`);
+  }, [escaneos]);
+
+  // useEffect para filtrar cuando cambia la búsqueda
+  useEffect(() => {
+    filtrarEscaneosPorSN(searchSN);
+  }, [searchSN, filtrarEscaneosPorSN]);
+
+  // fetchImage con mejor manejo de errores
   const fetchImage = async (scanId, tipo) => {
     setLoadingImages(prev => ({...prev, [`${scanId}_${tipo}`]: true}));
     try {
@@ -302,23 +329,8 @@ function App() {
       setLoadingImages(prev => ({...prev, [`${scanId}_${tipo}`]: false}));
     }
   };
-
-  // ✅ CORRECCIÓN 5: Función de prueba de conectividad
-  const testBackendConnection = async () => {
-    try {
-      console.log('🔧 Probando conexión con backend...');
-      const response = await axios.get(`${API_BASE_URL}/api/cloud/me`, { 
-        headers: getAuthHeaders() 
-      });
-      console.log('✅ Backend conectado:', response.data);
-      return true;
-    } catch (err) {
-      console.error('❌ Error de conexión backend:', err);
-      return false;
-    }
-  };
   
-  // ✅ CORRECCIÓN 6: useEffect mejorado con diagnóstico
+  // useEffect mejorado con todas las dependencias correctas
   useEffect(() => {
     if (isLoggedIn) {
       console.log('🚀 Iniciando carga de datos...');
@@ -331,7 +343,7 @@ function App() {
         }
       });
     }
-  }, [isLoggedIn, currentTab, fetchEscaneos, fetchStats]);
+  }, [isLoggedIn, currentTab, fetchEscaneos, fetchStats, testBackendConnection]);
 
   // === FUNCIONES DE FORMATEO ===
   const formatDate = (dateInput) => {
@@ -395,6 +407,11 @@ function App() {
     return 'N/A';
   };
 
+  // Función para limpiar búsqueda
+  const limpiarBusqueda = () => {
+    setSearchSN('');
+  };
+
   // === COMPONENTES VISUALES ===
   const ImageModal = () => (
     <Dialog open={imageDialogOpen} onClose={() => setImageDialogOpen(false)} maxWidth="lg" fullWidth>
@@ -420,6 +437,35 @@ function App() {
     </Dialog>
   );
 
+  // Componente de búsqueda
+  const SearchBar = () => (
+    <Paper sx={{ p: 2, mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+      <SearchIcon color="action" />
+      <TextField
+        fullWidth
+        size="small"
+        placeholder="Buscar por número de serie (SN)..."
+        value={searchSN}
+        onChange={(e) => setSearchSN(e.target.value)}
+        variant="outlined"
+        InputProps={{
+          endAdornment: searchSN && (
+            <IconButton size="small" onClick={limpiarBusqueda}>
+              <ClearIcon />
+            </IconButton>
+          )
+        }}
+      />
+      {searchSN && (
+        <Chip 
+          label={`${escaneosFiltrados.length} de ${escaneos.length}`}
+          color="primary" 
+          size="small" 
+        />
+      )}
+    </Paper>
+  );
+
   const EscaneosTable = () => (
     <TableContainer component={Paper} sx={{ mt: 2 }}>
       <Table>
@@ -438,7 +484,7 @@ function App() {
           </TableRow>
         </TableHead>
         <TableBody>
-          {escaneos.map((escaneo) => (
+          {escaneosFiltrados.map((escaneo) => (
             <TableRow key={escaneo.id} hover>
               <TableCell>
                 <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 500 }}>
@@ -550,19 +596,31 @@ function App() {
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h5">ESCANEOS</Typography>
             <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-              <Chip label={`Total: ${stats.total_escaneos || 0}`} color="primary" variant="outlined" />
+              <Chip label={`Mostrando: ${escaneosFiltrados.length} de ${escaneos.length}`} color="primary" variant="outlined" />
+              <Chip label={`Total: ${stats.total_escaneos || 0}`} color="secondary" variant="outlined" />
               <Button variant="contained" startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <RefreshIcon />} onClick={fetchEscaneos} disabled={loading} size="small">
                 Actualizar
               </Button>
             </Box>
           </Box>
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+          
+          <SearchBar />
+          
           {loading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
           ) : escaneos.length === 0 ? (
             <Paper sx={{ p: 4, textAlign: 'center' }}>
               <Typography variant="h6" color="textSecondary">No hay escaneos disponibles</Typography>
               <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>Verifica que tu usuario tenga escaneos asociados</Typography>
+            </Paper>
+          ) : escaneosFiltrados.length === 0 ? (
+            <Paper sx={{ p: 4, textAlign: 'center' }}>
+              <Typography variant="h6" color="textSecondary">No se encontraron escaneos</Typography>
+              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                No hay escaneos que coincidan con "{searchSN}"
+              </Typography>
+              <Button onClick={limpiarBusqueda} sx={{ mt: 2 }}>Limpiar búsqueda</Button>
             </Paper>
           ) : (
             <>
@@ -571,6 +629,12 @@ function App() {
                 <Typography variant="body2" color="textSecondary">
                   <strong>*</strong> Los valores con asterisco (*) son estimados desde datos legacy. Los nuevos escaneos mostrarán valores exactos de largo.
                 </Typography>
+                {searchSN && (
+                  <Typography variant="body2" color="primary" sx={{ mt: 1 }}>
+                    <SearchIcon fontSize="small" sx={{ verticalAlign: 'middle', mr: 1 }} />
+                    Mostrando resultados para: "<strong>{searchSN}</strong>"
+                  </Typography>
+                )}
               </Box>
             </>
           )}
