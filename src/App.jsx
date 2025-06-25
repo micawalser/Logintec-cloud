@@ -122,13 +122,24 @@ const getSafeValue = (obj, field, defaultValue = 'N/A') => {
 };
 
 const getUsuarioValue = (escaneo) => {
-    const campos = ['usuario_escaneo', 'usuario_escaner', 'usuario_scanner', 'usuario', 'user_name', 'username', 'nombre_usuario'];
+    // ✅ El backend ya resuelve automáticamente "1" → "admin"
+    if (escaneo.usuario_escaneo && 
+        escaneo.usuario_escaneo !== '' && 
+        escaneo.usuario_escaneo !== null && 
+        escaneo.usuario_escaneo !== 'No especificado') {
+        return escaneo.usuario_escaneo;  // Ya viene "admin" no "1"
+    }
+    
+    // Fallback para compatibilidad
+    const campos = ['username', 'user_name', 'nombre_usuario'];
     for (const campo of campos) {
-        if (escaneo[campo] && escaneo[campo] !== '' && escaneo[campo] !== null && escaneo[campo] !== 'No especificado') {
-            return escaneo[campo];
+        const valor = escaneo[campo];
+        if (valor && valor !== '' && valor !== null) {
+            return valor;
         }
     }
-    return 'N/D';
+    
+    return 'Usuario desconocido';
 };
 
 const hasImage = (escaneo, tipo) => {
