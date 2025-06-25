@@ -87,120 +87,57 @@ const api = {
 // UTILITY & FORMATTING FUNCTIONS
 // ========================================================================
 const formatDate = (dateInput) => {
-  if (!dateInput) return 'N/A';
-  
-  try {
+    if (!dateInput) return 'N/A';
     let date;
-    
     if (typeof dateInput === 'string') {
-      // Manejar diferentes formatos de fecha
-      if (dateInput.includes('T')) {
-        // Formato ISO
-        date = new Date(dateInput);
-      } else if (dateInput.includes('/')) {
-        // Formato DD/MM/YYYY o MM/DD/YYYY
-        date = new Date(dateInput);
-      } else {
-        // Formato 'YYYY-MM-DD HH:mm:ss' - agregar T
         const isoUtcDateTime = dateInput.replace(' ', 'T') + 'Z';
         date = new Date(isoUtcDateTime);
-      }
     } else {
-      date = new Date(dateInput);
+        date = new Date(dateInput);
     }
-    
     if (isNaN(date.getTime())) {
-      console.warn('Fecha inválida:', dateInput);
-      return 'Fecha inválida';
+        return 'Fecha inválida';
     }
-    
     return date.toLocaleString('es-AR', {
-      timeZone: 'America/Argentina/Buenos_Aires',
-      year: 'numeric', 
-      month: '2-digit', 
-      day: '2-digit',
-      hour: '2-digit', 
-      minute: '2-digit', 
-      hourCycle: 'h23'
+        timeZone: 'America/Argentina/Buenos_Aires',
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
     });
-    
-  } catch (error) {
-    console.error('Error formateando fecha:', error, dateInput);
-    return 'Error de fecha';
-  }
 };
 
 const formatDimensionCm = (mmValue) => {
-  if (mmValue === null || mmValue === undefined || mmValue === '') return 'N/A';
-  const numValue = parseFloat(mmValue);
-  return isNaN(numValue) ? mmValue : (numValue / 10).toFixed(1);
+    if (mmValue === null || mmValue === undefined || mmValue === '') return 'N/A';
+    const numValue = parseFloat(mmValue);
+    return isNaN(numValue) ? mmValue : (numValue / 10).toFixed(1);
 };
 
 const formatVolume3Decimals = (volumenMm3) => {
-  if (!volumenMm3 && volumenMm3 !== 0) return 'N/A';
-  return `${(volumenMm3 / 1000000).toFixed(3)} dm³`;
+    if (!volumenMm3 && volumenMm3 !== 0) return 'N/A';
+    return `${(volumenMm3 / 1000000).toFixed(3)} dm³`;
 };
 
 const getSafeValue = (obj, field, defaultValue = 'N/A') => {
-  const value = obj?.[field];
-  return (value !== undefined && value !== null && value !== '') ? value : defaultValue;
+    const value = obj?.[field];
+    return (value !== undefined && value !== null && value !== '') ? value : defaultValue;
 };
 
-// ✅ FUNCIÓN CORREGIDA PARA OBTENER USUARIO
 const getUsuarioValue = (escaneo) => {
-  console.log('Debug - escaneo completo:', escaneo); // Para debugging
-  
-  // Prioridad 1: usuario_escaneo ya resuelto desde backend
-  if (escaneo.usuario_escaneo && 
-      escaneo.usuario_escaneo !== '' && 
-      escaneo.usuario_escaneo !== null && 
-      escaneo.usuario_escaneo !== 'No especificado') {
-    
-    // Si aún es un ID numérico, intentar convertir a nombre
-    if (escaneo.usuario_escaneo === '1') {
-      return 'admin';
+    const campos = ['usuario_escaneo', 'usuario_escaner', 'usuario_scanner', 'usuario', 'user_name', 'username', 'nombre_usuario'];
+    for (const campo of campos) {
+        if (escaneo[campo] && escaneo[campo] !== '' && escaneo[campo] !== null && escaneo[campo] !== 'No especificado') {
+            return escaneo[campo];
+        }
     }
-    
-    return escaneo.usuario_escaneo;
-  }
-  
-  // Prioridad 2: Buscar en otros campos de usuario  
-  const campos = ['usuario_nombre_completo', 'username', 'user_name', 'nombre_usuario', 'usuario_nombre'];
-  for (const campo of campos) {
-    const valor = escaneo[campo];
-    if (valor && valor !== '' && valor !== null && valor !== 'undefined') {
-      return valor;
-    }
-  }
-  
-  // Prioridad 3: Si hay user_id, intentar mapear
-  if (escaneo.user_id) {
-    if (escaneo.user_id === 1 || escaneo.user_id === '1') {
-      return 'admin';
-    }
-    return `Usuario ID: ${escaneo.user_id}`;
-  }
-  
-  // Prioridad 4: Verificar si viene de sistema
-  if (escaneo.sistema || escaneo.is_system) {
-    return 'Sistema';
-  }
-  
-  // Por defecto
-  return 'Usuario desconocido';
+    return 'N/D';
 };
 
-// ✅ FUNCIÓN MEJORADA PARA VERIFICAR IMÁGENES
 const hasImage = (escaneo, tipo) => {
-  if (!escaneo) return false;
-  
-  const flag = tipo === '3d' ? escaneo.tiene_imagen_3d : escaneo.tiene_imagen_camara;
-  const image = tipo === '3d' ? escaneo.imagen_3d : escaneo.imagen_camara;
-  const filename = tipo === '3d' ? escaneo.imagen_3d_filename : escaneo.imagen_camara_filename;
-  
-  // Verificar si existe la imagen por flag, base64 o filename
-  return !!(flag || (image && image.length > 0) || (filename && filename !== '' && filename !== null));
+    const flag = tipo === '3d' ? escaneo.tiene_imagen_3d : escaneo.tiene_imagen_camara;
+    const image = tipo === '3d' ? escaneo.imagen_3d : escaneo.imagen_camara;
+    const filename = tipo === '3d' ? escaneo.imagen_3d_filename : escaneo.imagen_camara_filename;
+    return !!(flag || (image && image.length > 0) || (filename && filename !== ''));
 };
+
 
 // ========================================================================
 // COMPONENT: LoginForm
@@ -273,163 +210,68 @@ const ImageModal = ({ open, onClose, image }) => {
 };
 
 // ========================================================================
-// COMPONENT: EscaneosTable CORREGIDA
+// COMPONENT: EscaneosTable
 // ========================================================================
 const EscaneosTable = ({ escaneos, onViewImage, loadingImages }) => {
+  const calculateVolume = (escaneo) => {
+    if (escaneo.volumen) return escaneo.volumen;
+    const [ancho, altura, largo] = [escaneo.ancho || 0, escaneo.altura || escaneo.alto || 0, escaneo.largo || 0];
+    return (ancho && altura && largo) ? ancho * altura * largo : null;
+  };
+  
+  const getLargoValueCm = (escaneo) => {
+    const largo = getSafeValue(escaneo, 'largo', null);
+    if (largo !== null) return formatDimensionCm(largo);
+    const altoAsLargo = getSafeValue(escaneo, 'alto', null);
+    return altoAsLargo !== null ? `${formatDimensionCm(altoAsLargo)}*` : 'N/A';
+  };
+
   return (
-    <TableContainer 
-      component={Paper} 
-      sx={{ 
-        mt: 2,
-        maxHeight: 600, 
-        overflow: 'auto',
-        '& .MuiTableCell-root': {
-          padding: '8px 12px',
-          fontSize: '0.875rem',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis'
-        }
-      }}
-    >
-      <Table stickyHeader size="small">
+    <TableContainer component={Paper} sx={{ mt: 2 }}>
+      <Table>
         <TableHead>
           <TableRow>
-            <TableCell sx={{ fontWeight: 'bold', minWidth: 120 }}>Serial</TableCell>
-            <TableCell sx={{ fontWeight: 'bold', minWidth: 100 }}>Usuario</TableCell>
-            <TableCell sx={{ fontWeight: 'bold', minWidth: 140 }}>Fecha</TableCell>
-            <TableCell sx={{ fontWeight: 'bold', minWidth: 90 }} align="right">Ancho (cm)</TableCell>
-            <TableCell sx={{ fontWeight: 'bold', minWidth: 90 }} align="right">Largo (cm)</TableCell>
-            <TableCell sx={{ fontWeight: 'bold', minWidth: 90 }} align="right">Alto (cm)</TableCell>
-            <TableCell sx={{ fontWeight: 'bold', minWidth: 120 }} align="right">Volumen (dm³)</TableCell>
-            <TableCell sx={{ fontWeight: 'bold', minWidth: 120 }} align="center">Imágenes</TableCell>
-            <TableCell sx={{ fontWeight: 'bold', minWidth: 80 }} align="center">Acciones</TableCell>
+            <TableCell>Serial</TableCell><TableCell>Usuario</TableCell><TableCell>Fecha</TableCell>
+            <TableCell>Ancho (cm)</TableCell><TableCell>Largo (cm)</TableCell><TableCell>Alto (cm)</TableCell>
+            <TableCell>Volumen (dm³)</TableCell><TableCell>Imágenes</TableCell><TableCell>Acciones</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {escaneos.map((escaneo) => (
-            <TableRow 
-              key={escaneo.id} 
-              hover
-              sx={{ 
-                '&:nth-of-type(odd)': { backgroundColor: '#f5f5f5' },
-                '&:hover': { backgroundColor: '#e3f2fd' }
-              }}
-            >
-              {/* Serial */}
+            <TableRow key={escaneo.id} hover>
+              <TableCell><Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{getSafeValue(escaneo, 'serial')}</Typography></TableCell>
+              <TableCell><Typography variant="body2" sx={{ color: '#6B2C5A', fontWeight: 500 }}>{getUsuarioValue(escaneo)}</Typography></TableCell>
+              <TableCell>{formatDate(escaneo.fecha)}</TableCell>
+              <TableCell>{formatDimensionCm(getSafeValue(escaneo, 'ancho'))}</TableCell>
+              <TableCell>{getLargoValueCm(escaneo)}</TableCell>
+              <TableCell>{formatDimensionCm(getSafeValue(escaneo, 'altura') || getSafeValue(escaneo, 'alto'))}</TableCell>
+              <TableCell><Chip label={formatVolume3Decimals(calculateVolume(escaneo))} size="small" color="secondary" variant="outlined" /></TableCell>
               <TableCell>
-                <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 'medium' }}>
-                  {getSafeValue(escaneo, 'serial', 'Sin SN')}
-                </Typography>
-              </TableCell>
-
-              {/* Usuario - CORREGIDO */}
-              <TableCell>
-                <Typography 
-                  variant="body2" 
-                  sx={{ 
-                    color: escaneo.usuario_escaneo === 'admin' ? '#1976d2' : '#666',
-                    fontWeight: escaneo.usuario_escaneo === 'admin' ? 'bold' : 'normal'
-                  }}
-                >
-                  {getUsuarioValue(escaneo)}
-                </Typography>
-              </TableCell>
-
-              {/* Fecha - CORREGIDA */}
-              <TableCell>
-                <Typography variant="body2" sx={{ fontSize: '0.8rem', color: '#666' }}>
-                  {formatDate(escaneo.fecha)}
-                </Typography>
-              </TableCell>
-
-              {/* Dimensiones - CORREGIDAS */}
-              <TableCell align="right">
-                <Typography variant="body2">
-                  {formatDimensionCm(escaneo.ancho)}
-                </Typography>
-              </TableCell>
-              <TableCell align="right">
-                <Typography variant="body2">
-                  {formatDimensionCm(escaneo.largo)}
-                </Typography>
-              </TableCell>
-              <TableCell align="right">
-                <Typography variant="body2">
-                  {formatDimensionCm(escaneo.alto)}
-                </Typography>
-              </TableCell>
-
-              {/* Volumen - CORREGIDO */}
-              <TableCell align="right">
-                <Chip 
-                  label={formatVolume3Decimals(escaneo.volumen)} 
-                  size="small" 
-                  color="secondary" 
-                  variant="outlined" 
-                />
-              </TableCell>
-
-              {/* Imágenes - CORREGIDAS */}
-              <TableCell align="center">
-                <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
                   {hasImage(escaneo, '3d') && (
                     <Tooltip title="Ver Imagen 3D">
                       <span>
-                        <IconButton 
-                          size="small" 
-                          onClick={() => onViewImage(escaneo.id, '3d')} 
-                          disabled={loadingImages[`${escaneo.id}_3d`]} 
-                          sx={{ color: '#FF9800' }}
-                        >
-                          {loadingImages[`${escaneo.id}_3d`] ? 
-                            <CircularProgress size={16} /> : 
-                            <ImageIcon fontSize="small" />
-                          }
+                        <IconButton size="small" onClick={() => onViewImage(escaneo.id, '3d')} disabled={loadingImages[`${escaneo.id}_3d`]} sx={{ color: '#6B2C5A' }}>
+                          {loadingImages[`${escaneo.id}_3d`] ? <CircularProgress size={16} /> : <ImageIcon fontSize="small" />}
                         </IconButton>
                       </span>
                     </Tooltip>
                   )}
                   {hasImage(escaneo, 'camara') && (
-                    <Tooltip title="Ver Foto de Cámara">
-                      <span>
-                        <IconButton 
-                          size="small" 
-                          onClick={() => onViewImage(escaneo.id, 'camara')} 
-                          disabled={loadingImages[`${escaneo.id}_camara`]} 
-                          sx={{ color: '#7CB342' }}
-                        >
-                          {loadingImages[`${escaneo.id}_camara`] ? 
-                            <CircularProgress size={16} /> : 
-                            <CameraIcon fontSize="small" />
-                          }
+                     <Tooltip title="Ver Foto de Cámara">
+                       <span>
+                        <IconButton size="small" onClick={() => onViewImage(escaneo.id, 'camara')} disabled={loadingImages[`${escaneo.id}_camara`]} sx={{ color: '#7CB342' }}>
+                          {loadingImages[`${escaneo.id}_camara`] ? <CircularProgress size={16} /> : <CameraIcon fontSize="small" />}
                         </IconButton>
-                      </span>
+                       </span>
                     </Tooltip>
                   )}
-                  {!hasImage(escaneo, '3d') && !hasImage(escaneo, 'camara') && (
-                    <Chip 
-                      label="Sin imágenes" 
-                      size="small" 
-                      variant="outlined" 
-                      sx={{ fontSize: '0.7rem' }}
-                    />
-                  )}
+                  {!hasImage(escaneo, '3d') && !hasImage(escaneo, 'camara') && <Chip label="Sin imágenes" size="small" variant="outlined" />}
                 </Box>
               </TableCell>
-
-              {/* Acciones */}
-              <TableCell align="center">
+              <TableCell>
                 <Tooltip title="Ver detalles del escaneo">
-                  <IconButton 
-                    size="small" 
-                    sx={{ color: '#6B2C5A' }}
-                    onClick={() => {
-                      console.log('Ver detalles de:', escaneo);
-                    }}
-                  >
-                    <ViewIcon fontSize="small" />
-                  </IconButton>
+                  <IconButton size="small" sx={{ color: '#6B2C5A' }}><ViewIcon fontSize="small" /></IconButton>
                 </Tooltip>
               </TableCell>
             </TableRow>
@@ -439,6 +281,7 @@ const EscaneosTable = ({ escaneos, onViewImage, loadingImages }) => {
     </TableContainer>
   );
 };
+
 
 // ========================================================================
 // COMPONENT: Dashboard
@@ -460,13 +303,9 @@ const Dashboard = ({ onLogout }) => {
     try {
       await api.fetchCurrentUser();
       const escaneosRes = await api.fetchEscaneos();
-      
-      console.log('📊 Datos recibidos del backend:', escaneosRes.data);
-      
       setEscaneos(escaneosRes.data || []);
       setEscaneosFiltrados(escaneosRes.data || []);
     } catch (err) {
-      console.error('❌ Error cargando datos:', err);
       setError('No se pudo cargar los datos. Intenta de nuevo.');
       if (err.response?.status === 401) onLogout();
     } finally {
