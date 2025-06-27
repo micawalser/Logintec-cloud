@@ -18,6 +18,10 @@ import {
   Clear as ClearIcon
 } from '@mui/icons-material';
 
+// ✅ IMPORT MÁQUINAS Y SITIOS
+import MachinesSites from './pages/MachinesSites';
+import MachinesSitesService from './Services/machinesSitesService';
+
 // ========================================================================
 // THEME CONFIGURATION
 // ========================================================================
@@ -138,7 +142,6 @@ const hasImage = (escaneo, tipo) => {
     return !!(flag || (image && image.length > 0) || (filename && filename !== ''));
 };
 
-
 // ========================================================================
 // COMPONENT: LoginForm
 // ========================================================================
@@ -231,57 +234,71 @@ const EscaneosTable = ({ escaneos, onViewImage, loadingImages }) => {
       <Table>
         <TableHead>
           <TableRow>
-            <TableCell>Serial</TableCell><TableCell>Usuario</TableCell><TableCell>Fecha</TableCell>
+            <TableCell>Serial</TableCell><TableCell>Usuario</TableCell><TableCell>Máquina</TableCell><TableCell>Sitio</TableCell><TableCell>Fecha</TableCell>
             <TableCell>Ancho (cm)</TableCell><TableCell>Largo (cm)</TableCell><TableCell>Alto (cm)</TableCell>
             <TableCell>Volumen (dm³)</TableCell><TableCell>Imágenes</TableCell><TableCell>Acciones</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {escaneos.map((escaneo) => (
-            <TableRow key={escaneo.id} hover>
-              <TableCell><Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{getSafeValue(escaneo, 'serial')}</Typography></TableCell>
-              <TableCell><Typography variant="body2" sx={{ color: '#6B2C5A', fontWeight: 500 }}>{getUsuarioValue(escaneo)}</Typography></TableCell>
-              <TableCell>{formatDate(escaneo.fecha)}</TableCell>
-              <TableCell>{formatDimensionCm(getSafeValue(escaneo, 'ancho'))}</TableCell>
-              <TableCell>{getLargoValueCm(escaneo)}</TableCell>
-              <TableCell>{formatDimensionCm(getSafeValue(escaneo, 'altura') || getSafeValue(escaneo, 'alto'))}</TableCell>
-              <TableCell><Chip label={formatVolume3Decimals(calculateVolume(escaneo))} size="small" color="secondary" variant="outlined" /></TableCell>
-              <TableCell>
-                <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
-                  {hasImage(escaneo, '3d') && (
-                    <Tooltip title="Ver Imagen 3D">
-                      <span>
-                        <IconButton size="small" onClick={() => onViewImage(escaneo.id, '3d')} disabled={loadingImages[`${escaneo.id}_3d`]} sx={{ color: '#6B2C5A' }}>
-                          {loadingImages[`${escaneo.id}_3d`] ? <CircularProgress size={16} /> : <ImageIcon fontSize="small" />}
-                        </IconButton>
-                      </span>
-                    </Tooltip>
-                  )}
-                  {hasImage(escaneo, 'camara') && (
-                     <Tooltip title="Ver Foto de Cámara">
-                       <span>
-                        <IconButton size="small" onClick={() => onViewImage(escaneo.id, 'camara')} disabled={loadingImages[`${escaneo.id}_camara`]} sx={{ color: '#7CB342' }}>
-                          {loadingImages[`${escaneo.id}_camara`] ? <CircularProgress size={16} /> : <CameraIcon fontSize="small" />}
-                        </IconButton>
-                       </span>
-                    </Tooltip>
-                  )}
-                  {!hasImage(escaneo, '3d') && !hasImage(escaneo, 'camara') && <Chip label="Sin imágenes" size="small" variant="outlined" />}
-                </Box>
-              </TableCell>
-              <TableCell>
-                <Tooltip title="Ver detalles del escaneo">
-                  <IconButton size="small" sx={{ color: '#6B2C5A' }}><ViewIcon fontSize="small" /></IconButton>
-                </Tooltip>
-              </TableCell>
-            </TableRow>
-          ))}
+          {escaneos.map((escaneo) => {
+            // ✅ Enriquecer escaneo con datos de máquina/sitio
+            const enrichedScan = MachinesSitesService.enrichScanWithMachineData(escaneo);
+            
+            return (
+              <TableRow key={escaneo.id} hover>
+                <TableCell><Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{getSafeValue(escaneo, 'serial')}</Typography></TableCell>
+                <TableCell><Typography variant="body2" sx={{ color: '#6B2C5A', fontWeight: 500 }}>{getUsuarioValue(escaneo)}</Typography></TableCell>
+                <TableCell>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    {enrichedScan.machine_name}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    {enrichedScan.site_name}
+                  </Typography>
+                </TableCell>
+                <TableCell>{formatDate(escaneo.fecha)}</TableCell>
+                <TableCell>{formatDimensionCm(getSafeValue(escaneo, 'ancho'))}</TableCell>
+                <TableCell>{getLargoValueCm(escaneo)}</TableCell>
+                <TableCell>{formatDimensionCm(getSafeValue(escaneo, 'altura') || getSafeValue(escaneo, 'alto'))}</TableCell>
+                <TableCell><Chip label={formatVolume3Decimals(calculateVolume(escaneo))} size="small" color="secondary" variant="outlined" /></TableCell>
+                <TableCell>
+                  <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                    {hasImage(escaneo, '3d') && (
+                      <Tooltip title="Ver Imagen 3D">
+                        <span>
+                          <IconButton size="small" onClick={() => onViewImage(escaneo.id, '3d')} disabled={loadingImages[`${escaneo.id}_3d`]} sx={{ color: '#6B2C5A' }}>
+                            {loadingImages[`${escaneo.id}_3d`] ? <CircularProgress size={16} /> : <ImageIcon fontSize="small" />}
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    )}
+                    {hasImage(escaneo, 'camara') && (
+                       <Tooltip title="Ver Foto de Cámara">
+                         <span>
+                          <IconButton size="small" onClick={() => onViewImage(escaneo.id, 'camara')} disabled={loadingImages[`${escaneo.id}_camara`]} sx={{ color: '#7CB342' }}>
+                            {loadingImages[`${escaneo.id}_camara`] ? <CircularProgress size={16} /> : <CameraIcon fontSize="small" />}
+                          </IconButton>
+                         </span>
+                      </Tooltip>
+                    )}
+                    {!hasImage(escaneo, '3d') && !hasImage(escaneo, 'camara') && <Chip label="Sin imágenes" size="small" variant="outlined" />}
+                  </Box>
+                </TableCell>
+                <TableCell>
+                  <Tooltip title="Ver detalles del escaneo">
+                    <IconButton size="small" sx={{ color: '#6B2C5A' }}><ViewIcon fontSize="small" /></IconButton>
+                  </Tooltip>
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </TableContainer>
   );
 };
-
 
 // ========================================================================
 // COMPONENT: Dashboard
@@ -347,32 +364,41 @@ const Dashboard = ({ onLogout }) => {
   };
 
   const renderTabContent = () => {
-    if (currentTab !== 1) return <Typography sx={{p:3, textAlign: 'center'}}>Sección en desarrollo.</Typography>;
+    // ✅ TAB 0: MÁQUINAS Y SITIOS
+    if (currentTab === 0) {
+      return <MachinesSites />;
+    }
     
-    return (
-      <>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h5">ESCANEOS</Typography>
-          <Button variant="contained" startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <RefreshIcon />} onClick={fetchAllData} disabled={loading} size="small">
-            Actualizar
-          </Button>
-        </Box>
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-        <Paper sx={{ p: 2, mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-          <SearchIcon color="action" />
-          <TextField fullWidth size="small" placeholder="Buscar por número de serie..." value={searchSN} onChange={(e) => setSearchSN(e.target.value)} variant="outlined"
-            InputProps={{
-              endAdornment: searchSN && <IconButton size="small" onClick={() => setSearchSN('')}><ClearIcon /></IconButton>
-            }}
-          />
-        </Paper>
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
-        ) : (
-          <EscaneosTable escaneos={escaneosFiltrados} onViewImage={handleViewImage} loadingImages={loadingImages}/>
-        )}
-      </>
-    );
+    // ✅ TAB 1: ESCANEOS (tu código original)
+    if (currentTab === 1) {
+      return (
+        <>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h5">ESCANEOS</Typography>
+            <Button variant="contained" startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <RefreshIcon />} onClick={fetchAllData} disabled={loading} size="small">
+              Actualizar
+            </Button>
+          </Box>
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+          <Paper sx={{ p: 2, mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <SearchIcon color="action" />
+            <TextField fullWidth size="small" placeholder="Buscar por número de serie..." value={searchSN} onChange={(e) => setSearchSN(e.target.value)} variant="outlined"
+              InputProps={{
+                endAdornment: searchSN && <IconButton size="small" onClick={() => setSearchSN('')}><ClearIcon /></IconButton>
+              }}
+            />
+          </Paper>
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
+          ) : (
+            <EscaneosTable escaneos={escaneosFiltrados} onViewImage={handleViewImage} loadingImages={loadingImages}/>
+          )}
+        </>
+      );
+    }
+    
+    // ✅ RESTO DE TABS: En desarrollo
+    return <Typography sx={{p:3, textAlign: 'center'}}>Sección en desarrollo.</Typography>;
   };
 
   return (
