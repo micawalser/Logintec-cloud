@@ -4,7 +4,7 @@ import {
   Box, TextField, Button, Paper, Typography, AppBar, Toolbar,
   Tabs, Tab, Container, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, ThemeProvider, createTheme, CircularProgress,
-  Alert, Chip, Dialog, DialogContent, DialogTitle, IconButton, Tooltip, Fab, CssBaseline
+  Alert, Chip, Dialog, DialogContent, DialogTitle, IconButton, Tooltip, Fab, CssBaseline, MenuItem
 } from '@mui/material';
 import {
   Visibility as ViewIcon,
@@ -327,8 +327,8 @@ const Dashboard = ({ onLogout }) => {
   const [filtroMaquina, setFiltroMaquina] = useState('');
 
   // Obtener valores únicos de sitio y máquina
-  const sitiosUnicos = Array.from(new Set(escaneos.map(e => e.sitio).filter(Boolean)));
-  const maquinasUnicas = Array.from(new Set(escaneos.map(e => e.maquina).filter(Boolean)));
+  const sitiosUnicos = Array.from(new Set(escaneos.map(e => e.site_name).filter(Boolean)));
+  const maquinasUnicas = Array.from(new Set(escaneos.map(e => e.maquina_modelo).filter(Boolean)));
 
   // Fetch escaneos con paginación real
   const fetchEscaneos = useCallback(async (pagina = 1) => {
@@ -361,10 +361,10 @@ const Dashboard = ({ onLogout }) => {
       );
     }
     if (filtroSitio) {
-      filtrados = filtrados.filter(escaneo => escaneo.sitio === filtroSitio);
+      filtrados = filtrados.filter(escaneo => escaneo.site_name === filtroSitio);
     }
     if (filtroMaquina) {
-      filtrados = filtrados.filter(escaneo => escaneo.maquina === filtroMaquina);
+      filtrados = filtrados.filter(escaneo => escaneo.maquina_modelo === filtroMaquina);
     }
     setEscaneosFiltrados(filtrados);
   }, [escaneos, searchSN, filtroSitio, filtroMaquina]);
@@ -409,13 +409,12 @@ const Dashboard = ({ onLogout }) => {
           label="Filtrar por sitio"
           value={filtroSitio}
           onChange={e => setFiltroSitio(e.target.value)}
-          SelectProps={{ native: true }}
           size="small"
           sx={{ minWidth: 180 }}
         >
-          <option value="">Todos los sitios</option>
+          <MenuItem value="">Todos los sitios</MenuItem>
           {sitiosUnicos.map(sitio => (
-            <option key={sitio} value={sitio}>{sitio}</option>
+            <MenuItem key={sitio} value={sitio}>{sitio}</MenuItem>
           ))}
         </TextField>
         <TextField
@@ -423,13 +422,12 @@ const Dashboard = ({ onLogout }) => {
           label="Filtrar por máquina"
           value={filtroMaquina}
           onChange={e => setFiltroMaquina(e.target.value)}
-          SelectProps={{ native: true }}
           size="small"
           sx={{ minWidth: 180 }}
         >
-          <option value="">Todas las máquinas</option>
+          <MenuItem value="">Todas las máquinas</MenuItem>
           {maquinasUnicas.map(maquina => (
-            <option key={maquina} value={maquina}>{maquina}</option>
+            <MenuItem key={maquina} value={maquina}>{maquina}</MenuItem>
           ))}
         </TextField>
       </Box>
