@@ -1,34 +1,9 @@
 // src/Services/machinesSitesService.js
 // ✅ TEMPORAL - Usando datos mock para evitar errores de JSON
 
-const mockConfigData = {
-  client: {
-    client_id: "CLIENTE_001",
-    nombre: "EMPRESA_PRUEBA",
-    descripcion: "Cliente de prueba para LS1000"
-  },
-  machine: {
-    id: "MAQUINA_001",
-    nombre: "LS1000 Principal",
-    descripcion: "Máquina principal oficina central San Martín",
-    mac_address: "AA:BB:CC:DD:EE:FF",
-    serial_number: "LS1000-2025-001",
-    ip_address: "192.168.0.100",
-    modelo: "LS1000-Pro",
-    ultima_medicion: null,
-    firmware_version: "v2.1.3",
-    enabled: true
-  },
-  site: {
-    id: "SITIO_001",
-    nombre: "PC San Martín",
-    tipo: "PC",
-    ubicacion: "Oficina San Martín - Buenos Aires",
-    machine_id: "MAQUINA_001",
-    ultima_conexion: "2025-06-27T09:15:00",
-    estado: "activo"
-  }
-};
+import axios from 'axios';
+
+const API_BASE_URL = 'https://logintec-1.onrender.com';
 
 class MachinesSitesService {
   
@@ -36,21 +11,21 @@ class MachinesSitesService {
    * Obtiene información de la máquina de este sitio
    */
   static getCurrentMachine() {
-    return mockConfigData.machine || null;
+    return null; // No longer using mockConfigData
   }
 
   /**
    * Obtiene información del sitio actual
    */
   static getCurrentSite() {
-    return mockConfigData.site || null;
+    return null; // No longer using mockConfigData
   }
 
   /**
    * Obtiene información del cliente
    */
   static getClientInfo() {
-    return mockConfigData.client || {};
+    return null; // No longer using mockConfigData
   }
 
   /**
@@ -149,21 +124,40 @@ class MachinesSitesService {
    * ✅ MEJORADO: Obtiene información completa del sitio actual
    */
   static async getSiteInfo() {
-    const machine = this.getCurrentMachine();
-    const site = this.getCurrentSite();
-    const connectionStatus = await this.checkRealConnectionStatus();
-    const lastMeasurement = await this.getLastMeasurement();
-    
-    return {
-      machine: {
-        ...machine,
-        ultima_medicion: lastMeasurement // ✅ Dato real, no estático
-      },
-      site,
-      client: this.getClientInfo(),
-      connectionStatus,
-      isConnected: connectionStatus.isConnected
-    };
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await axios.get(`${API_BASE_URL}/api/cloud/escaneos?page=1&page_size=1`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const items = response.data.items || [];
+      if (items.length === 0) return null;
+      const escaneo = items[0];
+      return {
+        machine: {
+          serial_number: escaneo.maquina_serial,
+          modelo: escaneo.maquina_modelo,
+          ip_address: escaneo.maquina_ip,
+          mac_address: escaneo.maquina_mac,
+          firmware_version: escaneo.maquina_firmware,
+          ultima_medicion: escaneo.maquina_ultima_medicion,
+          ultima_medicion_legible: escaneo.maquina_ultima_medicion_legible,
+          enabled: true // o el campo que corresponda
+        },
+        site: {
+          nombre: escaneo.site_name,
+          tipo: escaneo.tipo_sitio,
+          ubicacion: escaneo.device_location,
+          estado: escaneo.estado_sitio,
+          ultima_conexion: escaneo.ultima_conexion,
+          ultima_conexion_legible: escaneo.ultima_conexion_legible
+        },
+        client: escaneo.client || {},
+        isConnected: true // o lógica según los campos
+      };
+    } catch (error) {
+      console.error('Error obteniendo datos de máquina y sitio:', error);
+      return null;
+    }
   }
 }
 

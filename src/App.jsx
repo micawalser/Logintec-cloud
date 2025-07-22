@@ -144,6 +144,12 @@ const hasImage = (escaneo, tipo) => {
     return !!(flag || (image && image.length > 0) || (filename && filename !== ''));
 };
 
+// 1. Formatear la fecha:
+const formatFechaLegible = (escaneo) => {
+  // Si viene el campo legible, úsalo; si no, formatea el ISO
+  return escaneo.maquina_ultima_medicion_legible || escaneo.ultima_conexion_legible || (escaneo.fecha ? formatDate(escaneo.fecha) : 'N/A');
+};
+
 // ========================================================================
 // COMPONENT: LoginForm
 // ========================================================================
@@ -444,32 +450,32 @@ const Dashboard = ({ onLogout }) => {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Serial</TableCell>
-                <TableCell>Usuario</TableCell>
-                <TableCell>Máquina</TableCell>
-                <TableCell>Sitio</TableCell>
-                <TableCell>Fecha</TableCell>
-                <TableCell>Ancho (cm)</TableCell>
-                <TableCell>Largo (cm)</TableCell>
-                <TableCell>Alto (cm)</TableCell>
-                <TableCell>Volumen (dm³)</TableCell>
-                <TableCell>Imágenes</TableCell>
-                <TableCell>Acciones</TableCell>
+                <TableCell sx={{ fontSize: '0.95rem' }}>Serial</TableCell>
+                <TableCell sx={{ fontSize: '0.95rem' }}>Usuario</TableCell>
+                <TableCell sx={{ fontSize: '0.95rem' }}>Máquina</TableCell>
+                <TableCell sx={{ fontSize: '0.95rem' }}>Sitio</TableCell>
+                <TableCell sx={{ fontSize: '0.95rem' }}>Fecha</TableCell>
+                <TableCell sx={{ fontSize: '0.95rem' }}>Ancho (cm)</TableCell>
+                <TableCell sx={{ fontSize: '0.95rem' }}>Largo (cm)</TableCell>
+                <TableCell sx={{ fontSize: '0.95rem' }}>Alto (cm)</TableCell>
+                <TableCell sx={{ fontSize: '0.95rem' }}>Volumen (dm³)</TableCell>
+                <TableCell sx={{ fontSize: '0.95rem' }}>Imágenes</TableCell>
+                {/* Eliminar columna Acciones */}
               </TableRow>
             </TableHead>
             <TableBody>
               {escaneosFiltrados.map((escaneo) => (
                 <TableRow key={escaneo.id} hover>
-                  <TableCell>{escaneo.serial}</TableCell>
-                  <TableCell>{escaneo.usuario || escaneo.usuario_escaneo || escaneo.username || 'N/D'}</TableCell>
-                  <TableCell>{escaneo.maquina || 'N/D'}</TableCell>
-                  <TableCell>{escaneo.sitio || 'N/D'}</TableCell>
-                  <TableCell>{escaneo.fecha}</TableCell>
-                  <TableCell>{escaneo.ancho}</TableCell>
-                  <TableCell>{escaneo.largo}</TableCell>
-                  <TableCell>{escaneo.alto || escaneo.altura}</TableCell>
-                  <TableCell>{escaneo.volumen}</TableCell>
-                  <TableCell>
+                  <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.serial}</TableCell>
+                  <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.usuario || escaneo.usuario_escaneo || escaneo.username || 'N/D'}</TableCell>
+                  <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.maquina_modelo || 'N/D'}</TableCell>
+                  <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.site_name || 'N/D'}</TableCell>
+                  <TableCell sx={{ fontSize: '0.92rem' }}>{formatFechaLegible(escaneo)}</TableCell>
+                  <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.ancho}</TableCell>
+                  <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.largo}</TableCell>
+                  <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.alto || escaneo.altura}</TableCell>
+                  <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.volumen}</TableCell>
+                  <TableCell sx={{ fontSize: '0.92rem' }}>
                     <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
                       {escaneo.tiene_imagen_3d && (
                         <Tooltip title="Ver Imagen 3D">
@@ -494,11 +500,7 @@ const Dashboard = ({ onLogout }) => {
                       )}
                     </Box>
                   </TableCell>
-                  <TableCell>
-                    <Tooltip title="Ver detalles del escaneo">
-                      <IconButton size="small" sx={{ color: '#6B2C5A' }}><ViewIcon fontSize="small" /></IconButton>
-                    </Tooltip>
-                  </TableCell>
+                  {/* Eliminar columna Acciones */}
                 </TableRow>
               ))}
             </TableBody>
@@ -547,6 +549,7 @@ const Dashboard = ({ onLogout }) => {
   );
 
   const renderTabContent = () => {
+    if (currentTab === 0) return <MachinesSites />;
     if (currentTab === 1) return renderEscaneosTab();
     return renderOtherTabs();
   };
