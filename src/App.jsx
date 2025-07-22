@@ -244,7 +244,7 @@ const EscaneosTable = ({ escaneos, onViewImage, loadingImages }) => {
           <TableRow>
             <TableCell>Serial</TableCell><TableCell>Usuario</TableCell><TableCell>Máquina</TableCell><TableCell>Sitio</TableCell><TableCell>Fecha</TableCell>
             <TableCell>Ancho (cm)</TableCell><TableCell>Largo (cm)</TableCell><TableCell>Alto (cm)</TableCell>
-            <TableCell>Volumen (dm³)</TableCell><TableCell>Imágenes</TableCell><TableCell>Acciones</TableCell>
+            <TableCell>Volumen (dm³)</TableCell><TableCell>Peso (kg)</TableCell><TableCell>Imágenes</TableCell><TableCell>Acciones</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -271,6 +271,7 @@ const EscaneosTable = ({ escaneos, onViewImage, loadingImages }) => {
                 <TableCell>{getLargoValueCm(escaneo)}</TableCell>
                 <TableCell>{formatDimensionCm(getSafeValue(escaneo, 'altura') || getSafeValue(escaneo, 'alto'))}</TableCell>
                 <TableCell><Chip label={formatVolume3Decimals(calculateVolume(escaneo))} size="small" color="secondary" variant="outlined" /></TableCell>
+                <TableCell>{formatPesoKg(escaneo.peso)}</TableCell>
                 <TableCell>
                   <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
                     {hasImage(escaneo, '3d') && (
@@ -457,6 +458,7 @@ const Dashboard = ({ onLogout }) => {
                 <TableCell sx={{ fontSize: '0.95rem' }}>Largo (cm)</TableCell>
                 <TableCell sx={{ fontSize: '0.95rem' }}>Alto (cm)</TableCell>
                 <TableCell sx={{ fontSize: '0.95rem' }}>Volumen (dm³)</TableCell>
+                <TableCell sx={{ fontSize: '0.95rem' }}>Peso (kg)</TableCell>
                 <TableCell sx={{ fontSize: '0.95rem' }}>Imágenes</TableCell>
                 {/* Eliminar columna Acciones */}
               </TableRow>
@@ -473,6 +475,7 @@ const Dashboard = ({ onLogout }) => {
                   <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.largo}</TableCell>
                   <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.alto || escaneo.altura}</TableCell>
                   <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.volumen}</TableCell>
+                  <TableCell sx={{ fontSize: '0.92rem' }}>{formatPesoKg(escaneo.peso)}</TableCell>
                   <TableCell sx={{ fontSize: '0.92rem' }}>
                     <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
                       {escaneo.tiene_imagen_3d && (
@@ -598,6 +601,13 @@ function App() {
       </Box>
     </ThemeProvider>
   );
+}
+
+// Agregar función utilitaria para formatear el peso
+function formatPesoKg(peso) {
+  let valor = Number(peso);
+  if (isNaN(valor)) valor = 0;
+  return valor.toFixed(1) + ' kg';
 }
 
 export default App;
