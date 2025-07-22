@@ -74,9 +74,15 @@ function App() {
   const [selectedImage, setSelectedImage] = useState(null);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [loadingImages, setLoadingImages] = useState({});
-  
+  // Estados para paginación
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [totalPaginas, setTotalPaginas] = useState(1);
+  const pageSize = 100;
   // Estado para búsqueda por SN
   const [searchSN, setSearchSN] = useState('');
+  // Estados para filtros de sitio y máquina
+  const [filtroSitio, setFiltroSitio] = useState('');
+  const [filtroMaquina, setFiltroMaquina] = useState('');
 
   // URL base de tu API
   const API_BASE_URL = 'https://logintec-1.onrender.com';
@@ -106,11 +112,13 @@ function App() {
     setEscaneosFiltrados([]);
     setStats({});
     setSearchSN('');
+    setFiltroSitio('');
+    setFiltroMaquina('');
   };
 
-  const getAuthHeaders = () => ({
+  const getAuthHeaders = useCallback(() => ({
     'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-  });
+  }), []);
   
   // Función para obtener el usuario correctamente
   const getUsuarioValue = useCallback((escaneo) => {
@@ -179,76 +187,31 @@ function App() {
       console.error('❌ Error de conexión backend:', err);
       return false;
     }
-  }, []);
+  }, [getAuthHeaders]);
 
-  // fetchEscaneos con debugging mejorado
-  const fetchEscaneos = useCallback(async () => {
+  // fetchEscaneos con paginación real
+  const fetchEscaneos = useCallback(async (pagina = 1) => {
     if (!isLoggedIn) return;
     setLoading(true);
     setError('');
     try {
       console.log('🚀 Iniciando carga de escaneos...');
-      const response = await axios.get(`${API_BASE_URL}/api/cloud/escaneos`, { 
-        headers: getAuthHeaders() 
+      const response = await axios.get(`${API_BASE_URL}/api/cloud/escaneos?page=${pagina}&page_size=${pageSize}`, {
+        headers: getAuthHeaders()
       });
-      
-      console.log('📊 ANÁLISIS COMPLETO DE ESCANEOS:');
-      console.log(`📊 Total escaneos recibidos: ${response.data.length}`);
-      
-      if (response.data.length === 0) {
-        console.log('⚠️ No se recibieron escaneos');
-        setEscaneos([]);
-        setEscaneosFiltrados([]);
-        return;
-      }
-
-      // Analizar campos de imágenes y usuarios
-      let con3D = 0, conCamara = 0, sinImagenes = 0;
-      let conUsuario = 0, sinUsuario = 0;
-      
-      response.data.forEach((escaneo, index) => {
-        const tiene3D = hasImage(escaneo, '3d');
-        const tieneCamara = hasImage(escaneo, 'camara');
-        const usuario = getUsuarioValue(escaneo);
-        
-        if (tiene3D) con3D++;
-        if (tieneCamara) conCamara++;
-        if (!tiene3D && !tieneCamara) sinImagenes++;
-        
-        if (usuario !== 'Usuario desconocido') conUsuario++;
-        else sinUsuario++;
-        
-        if (index < 3) {
-          console.log(`📷 Escaneo ${escaneo.serial || escaneo.id}:`, {
-            usuario: usuario,
-            tiene_imagen_3d_flag: escaneo.tiene_imagen_3d,
-            tiene_imagen_camara_flag: escaneo.tiene_imagen_camara,
-            imagen_3d_filename: escaneo.imagen_3d_filename,
-            imagen_camara_filename: escaneo.imagen_camara_filename,
-            usuario_escaneo: escaneo.usuario_escaneo,
-            resultado_3d: tiene3D,
-            resultado_camara: tieneCamara
-          });
-        }
-      });
-      
-      console.log(`📈 RESUMEN DE IMÁGENES:`);
-      console.log(`   Con imagen 3D: ${con3D}`);
-      console.log(`   Con imagen cámara: ${conCamara}`);
-      console.log(`   Sin imágenes: ${sinImagenes}`);
-      console.log(`📈 RESUMEN DE USUARIOS:`);
-      console.log(`   Con usuario: ${conUsuario}`);
-      console.log(`   Sin usuario: ${sinUsuario}`);
-      
-      setEscaneos(response.data || []);
-      setEscaneosFiltrados(response.data || []);
+      // La respuesta ahora tiene: items, total, page, page_size
+      const { items, total, page, page_size } = response.data;
+      setEscaneos(items || []);
+      setEscaneosFiltrados(items || []);
+      setPaginaActual(page || 1);
+      setTotalPaginas(Math.ceil((total || 0) / (page_size || pageSize)));
     } catch (err) {
       setError('No se pudo cargar la lista de escaneos.');
       console.error('❌ Error fetching escaneos:', err);
     } finally {
       setLoading(false);
     }
-  }, [isLoggedIn, hasImage, getUsuarioValue]);
+  }, [isLoggedIn, getAuthHeaders]);
 
   const fetchStats = useCallback(async () => {
     if (!isLoggedIn) return;
@@ -258,28 +221,38 @@ function App() {
     } catch (err) {
       console.error('Error fetching stats:', err);
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, getAuthHeaders]);
 
-  // Función para filtrar escaneos por SN
-  const filtrarEscaneosPorSN = useCallback((terminoBusqueda) => {
-    if (!terminoBusqueda.trim()) {
-      setEscaneosFiltrados(escaneos);
-      return;
+  // Filtrar escaneos por SN, sitio y máquina
+  const filtrarEscaneos = useCallback(() => {
+    let filtrados = escaneos;
+    if (searchSN.trim()) {
+      filtrados = filtrados.filter(escaneo =>
+        escaneo.serial &&
+        escaneo.serial.toLowerCase().includes(searchSN.toLowerCase())
+      );
     }
-    
-    const filtrados = escaneos.filter(escaneo => 
-      escaneo.serial && 
-      escaneo.serial.toLowerCase().includes(terminoBusqueda.toLowerCase())
-    );
-    
+    if (filtroSitio) {
+      filtrados = filtrados.filter(escaneo => escaneo.sitio === filtroSitio);
+    }
+    if (filtroMaquina) {
+      filtrados = filtrados.filter(escaneo => escaneo.maquina === filtroMaquina);
+    }
     setEscaneosFiltrados(filtrados);
-    console.log(`🔍 Búsqueda SN: "${terminoBusqueda}" - Encontrados: ${filtrados.length}/${escaneos.length}`);
-  }, [escaneos]);
+  }, [escaneos, searchSN, filtroSitio, filtroMaquina]);
 
-  // useEffect para filtrar cuando cambia la búsqueda
+  // useEffect para aplicar filtros cuando cambian
   useEffect(() => {
-    filtrarEscaneosPorSN(searchSN);
-  }, [searchSN, filtrarEscaneosPorSN]);
+    filtrarEscaneos();
+  }, [escaneos, searchSN, filtroSitio, filtroMaquina, filtrarEscaneos]);
+
+  // useEffect para cargar escaneos al cambiar de página, login o tab
+  useEffect(() => {
+    if (isLoggedIn && currentTab === 1) {
+      fetchEscaneos(paginaActual);
+    }
+    // eslint-disable-next-line
+  }, [isLoggedIn, currentTab, paginaActual]);
 
   // fetchImage con mejor manejo de errores
   const fetchImage = async (scanId, tipo) => {
@@ -605,6 +578,38 @@ function App() {
           </Box>
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           
+          {/* Filtros por sitio y máquina */}
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <TextField
+              select
+              label="Filtrar por sitio"
+              value={filtroSitio}
+              onChange={e => setFiltroSitio(e.target.value)}
+              SelectProps={{ native: true }}
+              size="small"
+              sx={{ minWidth: 180 }}
+            >
+              <option value="">Todos los sitios</option>
+              {Array.from(new Set(escaneos.map(e => e.sitio).filter(Boolean))).map(sitio => (
+                <option key={sitio} value={sitio}>{sitio}</option>
+              ))}
+            </TextField>
+            <TextField
+              select
+              label="Filtrar por máquina"
+              value={filtroMaquina}
+              onChange={e => setFiltroMaquina(e.target.value)}
+              SelectProps={{ native: true }}
+              size="small"
+              sx={{ minWidth: 180 }}
+            >
+              <option value="">Todas las máquinas</option>
+              {Array.from(new Set(escaneos.map(e => e.maquina).filter(Boolean))).map(maquina => (
+                <option key={maquina} value={maquina}>{maquina}</option>
+              ))}
+            </TextField>
+          </Box>
+
           <SearchBar />
           
           {loading ? (
@@ -625,6 +630,22 @@ function App() {
           ) : (
             <>
               <EscaneosTable />
+              {/* Controles de paginación */}
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mt: 2, gap: 2 }}>
+                <Button
+                  variant="outlined"
+                  disabled={paginaActual === 1 || loading}
+                  onClick={() => fetchEscaneos(paginaActual - 1)}
+                >Anterior</Button>
+                <Typography variant="body2" sx={{ mx: 2 }}>
+                  Página {paginaActual} de {totalPaginas}
+                </Typography>
+                <Button
+                  variant="outlined"
+                  disabled={paginaActual === totalPaginas || loading}
+                  onClick={() => fetchEscaneos(paginaActual + 1)}
+                >Siguiente</Button>
+              </Box>
               <Box sx={{ mt: 2, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
                 <Typography variant="body2" color="textSecondary">
                   <strong>*</strong> Los valores con asterisco (*) son estimados desde datos legacy. Los nuevos escaneos mostrarán valores exactos de largo.
@@ -679,7 +700,10 @@ function App() {
     }
   };
 
-  const handleTabChange = (event, newValue) => { setCurrentTab(newValue); };
+  const handleTabChange = (event, newValue) => {
+    setCurrentTab(newValue);
+    if (newValue === 1) setPaginaActual(1);
+  };
 
   // === RENDERIZADO PRINCIPAL ===
   if (!isLoggedIn) {
