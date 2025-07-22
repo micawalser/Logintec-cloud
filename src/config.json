@@ -1,0 +1,63 @@
+{
+  "client": {
+    "client_id": "CLIENTE_001",
+    "nombre": "EMPRESA_PRUEBA",
+    "descripcion": "Cliente de prueba para LS1000"
+  },
+  "api": {
+    "base_url": "https://logintec-1.onrender.com",
+    "production_url": "https://logintec-1.onrender.com",
+    "endpoints": {
+      "scan": "/api/registro_escaneo",
+      "health": "/api/health",
+      "upload": "/api/upload_image",
+      "test": "/api/test_connection"
+    },
+    "timeout": 30,
+    "max_retries": 3,
+    "retry_delay": 2
+  },
+  "authentication": {
+    "api_key": "token_cliente_001_empresa_prueba_2024",
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "images": {
+    "enabled": true,
+    "max_size_mb": 10,
+    "formats": ["jpg", "jpeg", "png"],
+    "upload_camera_photos": true,
+    "upload_3d_images": true,
+    "local_backup": true
+  },
+  "development": {
+    "skip_backend": false,
+    "log_level": "INFO",
+    "test_mode": false,
+    "mode": "home_office",
+    "simulate_scans": true,
+    "auto_scan_interval": 20
+  },
+  "machine": {
+    "id": "MAQUINA_001",
+    "nombre": "LS1000 Principal",
+    "descripcion": "Máquina principal oficina central San Martín",
+    "mac_address": "AA:BB:CC:DD:EE:FF",
+    "serial_number": "LS1000-2025-001",
+    "ip_address": "192.168.0.100",
+    "modelo": "LS1000-Pro",
+    "ultima_medicion": null,
+    "firmware_version": "v2.1.3",
+    "enabled": true
+  },
+  "site": {
+    "id": "SITIO_001",
+    "nombre": "PC San Martín",
+    "tipo": "PC",
+    "ubicacion": "Oficina San Martín - Buenos Aires",
+    "machine_id": "MAQUINA_001",
+    "ultima_conexion": "2025-06-27T09:15:00",
+    "estado": "activo"
+  }
+}
