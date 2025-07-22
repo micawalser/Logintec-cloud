@@ -18,7 +18,7 @@ import {
   DeviceHub as DeviceHubIcon
 } from '@mui/icons-material';
 
-import MachinesSitesService from '../Services/machinesSitesService';
+import MachinesSitesService from '../services/machinesSitesService';
 
 const MachinesSites = () => {
   const [loading, setLoading] = useState(true);
@@ -159,7 +159,7 @@ const MachinesSites = () => {
         ))}
         {/* Máquinas */}
         {machines.map((machine, idx) => (
-          <Grid item xs={12} md={6} key={machine.serial_number + idx}>
+          <Grid item xs={12} md={6} key={machine.id + idx}>
             <Card sx={{ 
               borderRadius: 3, 
               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
@@ -204,7 +204,7 @@ const MachinesSites = () => {
                           variant="body2" 
                           sx={{ fontFamily: 'monospace', backgroundColor: '#F5F5F5', p: 0.5, borderRadius: 1 }}
                         >
-                          {machine.serial_number}
+                          {machine.id}
                         </Typography>
                       }
                     />
@@ -220,7 +220,7 @@ const MachinesSites = () => {
                       primary="Dirección IP"
                       secondary={
                         <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
-                          {machine.ip_address}
+                          {machine.ip}
                         </Typography>
                       }
                     />
@@ -230,7 +230,7 @@ const MachinesSites = () => {
                       primary="MAC Address"
                       secondary={
                         <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
-                          {machine.mac_address}
+                          {machine.mac}
                         </Typography>
                       }
                     />
@@ -238,7 +238,7 @@ const MachinesSites = () => {
                   <ListItem>
                     <ListItemText 
                       primary="Firmware"
-                      secondary={machine.firmware_version}
+                      secondary={machine.firmware}
                     />
                   </ListItem>
                   <ListItem>

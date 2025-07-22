@@ -159,6 +159,71 @@ class MachinesSitesService {
       return null;
     }
   }
+
+  /**
+   * Obtiene todas las máquinas únicas a partir de los escaneos
+   */
+  static async getAllMachines() {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await axios.get(`${API_BASE_URL}/api/cloud/escaneos?page=1&page_size=100`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const escaneos = response.data.items || [];
+      const maquinasMap = {};
+      escaneos.forEach(e => {
+        const key = e.maquina_serial || e.machine_serial_number;
+        if (key && !maquinasMap[key]) {
+          maquinasMap[key] = {
+            id: key,
+            modelo: e.maquina_modelo || e.machine_modelo,
+            firmware: e.maquina_firmware || e.machine_firmware_version,
+            ip: e.maquina_ip || e.machine_ip_address,
+            mac: e.maquina_mac || e.machine_mac_address,
+            ultima_medicion: e.maquina_ultima_medicion || e.machine_ultima_medicion,
+            enabled: true
+          };
+        }
+      });
+      console.log('Máquinas únicas:', Object.values(maquinasMap));
+      return Object.values(maquinasMap);
+    } catch (error) {
+      console.error('Error obteniendo máquinas:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Obtiene todos los sitios únicos a partir de los escaneos
+   */
+  static async getAllSites() {
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await axios.get(`${API_BASE_URL}/api/cloud/escaneos?page=1&page_size=100`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const escaneos = response.data.items || [];
+      const sitiosMap = {};
+      escaneos.forEach(e => {
+        const key = e.site_id;
+        if (key && !sitiosMap[key]) {
+          sitiosMap[key] = {
+            id: key,
+            nombre: e.site_name,
+            tipo: e.tipo_sitio || e.site_type,
+            ubicacion: e.device_location || e.site_location,
+            estado: e.estado_sitio || e.site_status,
+            ultima_conexion: e.ultima_conexion || e.site_last_connection_human || e.site_last_connection
+          };
+        }
+      });
+      console.log('Sitios únicos:', Object.values(sitiosMap));
+      return Object.values(sitiosMap);
+    } catch (error) {
+      console.error('Error obteniendo sitios:', error);
+      return [];
+    }
+  }
 }
 
 export default MachinesSitesService;
