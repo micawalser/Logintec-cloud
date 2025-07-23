@@ -20,7 +20,7 @@ import {
 
 // ✅ IMPORT MÁQUINAS Y SITIOS
 import MachinesSites from './pages/MachinesSites';
-import MachinesSitesService from './Services/machinesSitesService';
+import MachinesSitesService from './services/machinesSitesService';
 
 // ========================================================================
 // THEME CONFIGURATION
@@ -464,46 +464,51 @@ const Dashboard = ({ onLogout }) => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {escaneosFiltrados.map((escaneo) => (
-                <TableRow key={escaneo.id} hover>
-                  <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.serial}</TableCell>
-                  <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.usuario || escaneo.usuario_escaneo || escaneo.username || 'N/D'}</TableCell>
-                  <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.maquina_modelo || 'N/D'}</TableCell>
-                  <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.site_name || 'N/D'}</TableCell>
-                  <TableCell sx={{ fontSize: '0.92rem' }}>{formatFechaLegible(escaneo)}</TableCell>
-                  <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.ancho}</TableCell>
-                  <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.largo}</TableCell>
-                  <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.alto || escaneo.altura}</TableCell>
-                  <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.volumen}</TableCell>
-                  <TableCell sx={{ fontSize: '0.92rem' }}>{formatPesoKg(escaneo.peso)}</TableCell>
-                  <TableCell sx={{ fontSize: '0.92rem' }}>
-                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
-                      {escaneo.tiene_imagen_3d && (
-                        <Tooltip title="Ver Imagen 3D">
-                          <span>
-                            <IconButton size="small" onClick={() => handleViewImage(escaneo.id, '3d')} disabled={loadingImages[`${escaneo.id}_3d`]} sx={{ color: '#6B2C5A' }}>
-                              {loadingImages[`${escaneo.id}_3d`] ? <CircularProgress size={16} /> : <ImageIcon fontSize="small" />}
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                      )}
-                      {escaneo.tiene_imagen_camara && (
-                        <Tooltip title="Ver Foto de Cámara">
-                          <span>
-                            <IconButton size="small" onClick={() => handleViewImage(escaneo.id, 'camara')} disabled={loadingImages[`${escaneo.id}_camara`]} sx={{ color: '#7CB342' }}>
-                              {loadingImages[`${escaneo.id}_camara`] ? <CircularProgress size={16} /> : <CameraIcon fontSize="small" />}
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                      )}
-                      {!escaneo.tiene_imagen_3d && !escaneo.tiene_imagen_camara && (
-                        <Chip label="Sin imágenes" size="small" variant="outlined" />
-                      )}
-                    </Box>
-                  </TableCell>
-                  {/* Eliminar columna Acciones */}
-                </TableRow>
-              ))}
+              {filtrarDuplicadosPorSerial(escaneosFiltrados)
+                .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+                .map((escaneo) => {
+                  console.log('ESCANEO:', escaneo.serial, 'PESO:', escaneo.peso, escaneo);
+                  return (
+                    <TableRow key={escaneo.id} hover>
+                      <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.serial}</TableCell>
+                      <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.usuario || escaneo.usuario_escaneo || escaneo.username || 'N/D'}</TableCell>
+                      <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.maquina_modelo || 'N/D'}</TableCell>
+                      <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.site_name || 'N/D'}</TableCell>
+                      <TableCell sx={{ fontSize: '0.92rem' }}>{formatDate(escaneo.fecha)}</TableCell>
+                      <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.ancho}</TableCell>
+                      <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.largo}</TableCell>
+                      <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.alto || escaneo.altura}</TableCell>
+                      <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.volumen}</TableCell>
+                      <TableCell sx={{ fontSize: '0.92rem' }}>{formatPesoKg(escaneo.peso ?? escaneo.peso_kg ?? escaneo.machine_peso)}</TableCell>
+                      <TableCell sx={{ fontSize: '0.92rem' }}>
+                        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                          {escaneo.tiene_imagen_3d && (
+                            <Tooltip title="Ver Imagen 3D">
+                              <span>
+                                <IconButton size="small" onClick={() => handleViewImage(escaneo.id, '3d')} disabled={loadingImages[`${escaneo.id}_3d`]} sx={{ color: '#6B2C5A' }}>
+                                  {loadingImages[`${escaneo.id}_3d`] ? <CircularProgress size={16} /> : <ImageIcon fontSize="small" />}
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          )}
+                          {escaneo.tiene_imagen_camara && (
+                            <Tooltip title="Ver Foto de Cámara">
+                              <span>
+                                <IconButton size="small" onClick={() => handleViewImage(escaneo.id, 'camara')} disabled={loadingImages[`${escaneo.id}_camara`]} sx={{ color: '#7CB342' }}>
+                                  {loadingImages[`${escaneo.id}_camara`] ? <CircularProgress size={16} /> : <CameraIcon fontSize="small" />}
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          )}
+                          {!escaneo.tiene_imagen_3d && !escaneo.tiene_imagen_camara && (
+                            <Chip label="Sin imágenes" size="small" variant="outlined" />
+                          )}
+                        </Box>
+                      </TableCell>
+                      {/* Eliminar columna Acciones */}
+                    </TableRow>
+                  );
+                })}
             </TableBody>
           </Table>
         </TableContainer>
@@ -608,6 +613,19 @@ function formatPesoKg(peso) {
   let valor = Number(peso);
   if (isNaN(valor)) valor = 0;
   return valor.toFixed(1) + ' kg';
+}
+
+// Filtrar duplicados por número de serie (solo el más reciente)
+function filtrarDuplicadosPorSerial(escaneos) {
+  const map = {};
+  escaneos.forEach(e => {
+    const serial = e.serial;
+    if (!serial) return;
+    if (!map[serial] || new Date(e.fecha) > new Date(map[serial].fecha)) {
+      map[serial] = e;
+    }
+  });
+  return Object.values(map);
 }
 
 export default App;
