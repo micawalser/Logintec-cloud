@@ -150,6 +150,14 @@ const formatFechaLegible = (escaneo) => {
   return escaneo.maquina_ultima_medicion_legible || escaneo.ultima_conexion_legible || (escaneo.fecha ? formatDate(escaneo.fecha) : 'N/A');
 };
 
+// Reemplazar función de formateo de volumen
+const formatVolumeSmart = (volumenMm3) => {
+  if (!volumenMm3 && volumenMm3 !== 0) return 'N/A';
+  let valor = (volumenMm3 / 1000000).toFixed(3);
+  valor = valor.replace(/\.0+$|(\.\d*?[1-9])0+$/, '$1');
+  return `${valor} dm³`;
+};
+
 // ========================================================================
 // COMPONENT: LoginForm
 // ========================================================================
@@ -270,7 +278,7 @@ const EscaneosTable = ({ escaneos, onViewImage, loadingImages }) => {
                 <TableCell>{formatDimensionCm(getSafeValue(escaneo, 'ancho'))}</TableCell>
                 <TableCell>{getLargoValueCm(escaneo)}</TableCell>
                 <TableCell>{formatDimensionCm(getSafeValue(escaneo, 'altura') || getSafeValue(escaneo, 'alto'))}</TableCell>
-                <TableCell><Chip label={formatVolume3Decimals(calculateVolume(escaneo))} size="small" color="secondary" variant="outlined" /></TableCell>
+                <TableCell><Chip label={formatVolumeSmart(calculateVolume(escaneo))} size="small" color="secondary" variant="outlined" /></TableCell>
                 <TableCell>{formatPesoKg(escaneo.peso)}</TableCell>
                 <TableCell>
                   <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
@@ -478,7 +486,9 @@ const Dashboard = ({ onLogout }) => {
                       <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.ancho}</TableCell>
                       <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.largo}</TableCell>
                       <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.alto || escaneo.altura}</TableCell>
-                      <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.volumen}</TableCell>
+                      <TableCell sx={{ fontSize: '0.92rem' }}>
+                        <Chip label={formatVolumeSmart(escaneo.volumen)} size="small" color="secondary" variant="outlined" />
+                      </TableCell>
                       <TableCell sx={{ fontSize: '0.92rem' }}>{formatPesoKg(escaneo.peso ?? escaneo.peso_kg ?? escaneo.machine_peso)}</TableCell>
                       <TableCell sx={{ fontSize: '0.92rem' }}>
                         <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
