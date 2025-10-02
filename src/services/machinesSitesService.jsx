@@ -2,6 +2,7 @@
 // ✅ TEMPORAL - Usando datos mock para evitar errores de JSON
 
 import axios from 'axios';
+import { formatDateArgentina } from '../utils/dateUtils';
 
 const API_BASE_URL = 'https://logintec-1.onrender.com';
 
@@ -95,17 +96,10 @@ class MachinesSitesService {
   }
 
   /**
-   * Formatea fecha en formato argentino
+   * Formatea fecha en formato argentino con zona horaria específica
    */
   static formatDate(dateString) {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString('es-AR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return formatDateArgentina(dateString);
   }
 
   /**
@@ -166,12 +160,44 @@ class MachinesSitesService {
   static async getAllMachines() {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await axios.get(`${API_BASE_URL}/api/cloud/escaneos?page=1&page_size=100`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const escaneos = response.data.items || [];
+      console.log('🔍 Token encontrado:', token ? 'SÍ' : 'NO');
+      
+      console.log('📡 Obteniendo datos frescos de máquinas...');
+      
+      // Paginación inteligente: parar cuando tengamos suficientes máquinas
+      const allEscaneos = [];
+      let page = 1;
+      let hasMore = true;
+      const pageSize = 100;
+      let maquinasEncontradas = new Set();
+      
+      while (hasMore && page <= 5) { // Máximo 5 páginas (500 escaneos)
+        console.log(`📄 Obteniendo página ${page} para máquinas...`);
+        const response = await axios.get(`${API_BASE_URL}/api/cloud/escaneos?page=${page}&page_size=${pageSize}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        const items = response.data.items || [];
+        allEscaneos.push(...items);
+        
+        // Contar máquinas únicas en esta página
+        items.forEach(e => {
+          const key = e.maquina_serial || e.machine_serial_number;
+          if (key) maquinasEncontradas.add(key);
+        });
+        
+        console.log(`✅ Página ${page}: ${items.length} escaneos, ${maquinasEncontradas.size} máquinas únicas`);
+        
+        // Si hay menos de pageSize items, es la última página
+        hasMore = items.length === pageSize;
+        page++;
+      }
+      
+      console.log(`📊 Total escaneos obtenidos para máquinas: ${allEscaneos.length}`);
+      console.log(`🔧 Máquinas únicas encontradas: ${maquinasEncontradas.size}`);
+      
       const maquinasMap = {};
-      escaneos.forEach(e => {
+      allEscaneos.forEach((e, index) => {
         const key = e.maquina_serial || e.machine_serial_number;
         if (key && !maquinasMap[key]) {
           maquinasMap[key] = {
@@ -185,10 +211,27 @@ class MachinesSitesService {
           };
         }
       });
-      console.log('Máquinas únicas:', Object.values(maquinasMap));
-      return Object.values(maquinasMap);
+      
+      const maquinas = Object.values(maquinasMap);
+      console.log('🔧 Máquinas únicas finales:', maquinas);
+      
+      // Si no hay máquinas, crear una por defecto
+      if (maquinas.length === 0) {
+        console.log('⚠️ No se encontraron máquinas, creando máquina por defecto');
+        return [{
+          id: 'default_machine',
+          modelo: 'Máquina por Defecto',
+          firmware: 'v1.0.0',
+          ip: '192.168.1.100',
+          mac: '00:00:00:00:00:00',
+          ultima_medicion: new Date().toISOString(),
+          enabled: true
+        }];
+      }
+      
+      return maquinas;
     } catch (error) {
-      console.error('Error obteniendo máquinas:', error);
+      console.error('❌ Error obteniendo máquinas:', error);
       return [];
     }
   }
@@ -199,13 +242,46 @@ class MachinesSitesService {
   static async getAllSites() {
     try {
       const token = localStorage.getItem('authToken');
-      const response = await axios.get(`${API_BASE_URL}/api/cloud/escaneos?page=1&page_size=100`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const escaneos = response.data.items || [];
+      console.log('🔍 Token encontrado:', token ? 'SÍ' : 'NO');
+      
+      console.log('📡 Obteniendo datos frescos...');
+      
+      // Paginación inteligente: parar cuando tengamos suficientes sitios
+      const allEscaneos = [];
+      let page = 1;
+      let hasMore = true;
+      const pageSize = 100;
+      let sitiosEncontrados = new Set();
+      
+      while (hasMore && page <= 5) { // Máximo 5 páginas (500 escaneos)
+        console.log(`📄 Obteniendo página ${page}...`);
+        const response = await axios.get(`${API_BASE_URL}/api/cloud/escaneos?page=${page}&page_size=${pageSize}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        const items = response.data.items || [];
+        allEscaneos.push(...items);
+        
+        // Contar sitios únicos en esta página
+        items.forEach(e => {
+          const key = e.site_id || `no_id_${e.site_name}`;
+          if (key) sitiosEncontrados.add(key);
+        });
+        
+        console.log(`✅ Página ${page}: ${items.length} escaneos, ${sitiosEncontrados.size} sitios únicos`);
+        
+        // Si hay menos de pageSize items, es la última página
+        hasMore = items.length === pageSize;
+        page++;
+      }
+      
+      console.log(`📊 Total escaneos obtenidos: ${allEscaneos.length}`);
+      console.log(`🏢 Sitios únicos encontrados: ${sitiosEncontrados.size}`);
+      
       const sitiosMap = {};
-      escaneos.forEach(e => {
-        const key = e.site_id;
+      allEscaneos.forEach((e, index) => {
+        // Usar site_name como clave si site_id es null/vacío
+        const key = e.site_id || `no_id_${e.site_name}`;
         if (key && !sitiosMap[key]) {
           sitiosMap[key] = {
             id: key,
@@ -217,10 +293,26 @@ class MachinesSitesService {
           };
         }
       });
-      console.log('Sitios únicos:', Object.values(sitiosMap));
-      return Object.values(sitiosMap);
+      
+      const sitios = Object.values(sitiosMap);
+      console.log('🏢 Sitios únicos finales:', sitios);
+      
+      // Si no hay sitios, crear uno por defecto
+      if (sitios.length === 0) {
+        console.log('⚠️ No se encontraron sitios, creando sitio por defecto');
+        return [{
+          id: 'default_site',
+          nombre: 'Sitio por Defecto',
+          tipo: 'PC',
+          ubicacion: 'Ubicación no especificada',
+          estado: 'activo',
+          ultima_conexion: new Date().toISOString()
+        }];
+      }
+      
+      return sitios;
     } catch (error) {
-      console.error('Error obteniendo sitios:', error);
+      console.error('❌ Error obteniendo sitios:', error);
       return [];
     }
   }

@@ -62,7 +62,7 @@ const MachinesSites = () => {
     return (
       <Container maxWidth="xl" sx={{ py: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-          <CircularProgress sx={{ color: '#6B2C5A' }} size={60} />
+          <CircularProgress sx={{ color: '#5b3ea3' }} size={60} />
         </Box>
       </Container>
     );
@@ -93,14 +93,14 @@ const MachinesSites = () => {
             <Card sx={{ 
               borderRadius: 3, 
               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-              borderLeft: '4px solid #7CB342'
+              borderLeft: '4px solid #07c7c3'
             }}>
               <CardContent sx={{ p: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                   <Box sx={{ 
                     p: 1.5, 
                     borderRadius: 2, 
-                    backgroundColor: '#7CB342', 
+                    backgroundColor: '#07c7c3', 
                     color: 'white',
                     mr: 2
                   }}>
@@ -117,9 +117,15 @@ const MachinesSites = () => {
                   <Box sx={{ ml: 'auto' }}>
                     <Chip 
                       label={site.estado?.toUpperCase()}
-                      color={site.estado === 'activo' ? 'success' : 'error'}
                       size="small"
-                      sx={{ fontWeight: 500 }}
+                      sx={{ 
+                        fontWeight: 500,
+                        backgroundColor: site.estado === 'activo' ? '#07c7c3' : '#f44336',
+                        color: 'white',
+                        '&:hover': {
+                          backgroundColor: site.estado === 'activo' ? '#05a39f' : '#d32f2f'
+                        }
+                      }}
                     />
                   </Box>
                 </Box>
@@ -127,7 +133,7 @@ const MachinesSites = () => {
                 <List dense>
                   <ListItem>
                     <ListItemIcon>
-                      <SettingsIcon sx={{ color: '#6B2C5A' }} />
+                      <SettingsIcon sx={{ color: '#07c7c3' }} />
                     </ListItemIcon>
                     <ListItemText 
                       primary="Tipo de Sitio"
@@ -136,7 +142,7 @@ const MachinesSites = () => {
                   </ListItem>
                   <ListItem>
                     <ListItemIcon>
-                      <LocationIcon sx={{ color: '#6B2C5A' }} />
+                      <LocationIcon sx={{ color: '#07c7c3' }} />
                     </ListItemIcon>
                     <ListItemText 
                       primary="Ubicación"
@@ -145,7 +151,7 @@ const MachinesSites = () => {
                   </ListItem>
                   <ListItem>
                     <ListItemIcon>
-                      <DeviceHubIcon sx={{ color: '#6B2C5A' }} />
+                      <DeviceHubIcon sx={{ color: '#07c7c3' }} />
                     </ListItemIcon>
                     <ListItemText 
                       primary="Última Conexión"
@@ -163,14 +169,14 @@ const MachinesSites = () => {
             <Card sx={{ 
               borderRadius: 3, 
               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-              borderLeft: '4px solid #6B2C5A'
+              borderLeft: '4px solid #5b3ea3'
             }}>
               <CardContent sx={{ p: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                   <Box sx={{ 
                     p: 1.5, 
                     borderRadius: 2, 
-                    backgroundColor: '#6B2C5A', 
+                    backgroundColor: '#5b3ea3', 
                     color: 'white',
                     mr: 2
                   }}>
@@ -188,9 +194,15 @@ const MachinesSites = () => {
                     <Chip 
                       icon={machine.enabled ? <CheckCircleIcon /> : <CancelIcon />}
                       label={machine.enabled ? 'HABILITADA' : 'DESHABILITADA'}
-                      color={machine.enabled ? 'success' : 'error'}
                       size="small"
-                      sx={{ fontWeight: 500 }}
+                      sx={{ 
+                        fontWeight: 500,
+                        backgroundColor: machine.enabled ? '#5b3ea3' : '#f44336',
+                        color: 'white',
+                        '&:hover': {
+                          backgroundColor: machine.enabled ? '#3D2A73' : '#d32f2f'
+                        }
+                      }}
                     />
                   </Box>
                 </Box>

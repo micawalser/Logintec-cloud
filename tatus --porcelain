@@ -1,0 +1,164 @@
+warning: in the working copy of 'src/App.jsx', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/src/App.jsx b/src/App.jsx[m
+[1mindex 6370e96..7377ce7 100644[m
+[1m--- a/src/App.jsx[m
+[1m+++ b/src/App.jsx[m
+[36m@@ -1,5 +1,7 @@[m
+ import React, { useState, useEffect, useCallback } from 'react';[m
+ import axios from 'axios';[m
+[32m+[m[32mimport { formatDateArgentina } from './utils/dateUtils';[m
+[32m+[m[32mimport { checkAuthStatus, checkApiConnectivity, diagnoseImageProblem } from './utils/imageUtils';[m
+ import {[m
+   Box, TextField, Button, Paper, Typography, AppBar, Toolbar,[m
+   Tabs, Tab, Container, Table, TableBody, TableCell, TableContainer,[m
+[36m@@ -15,12 +17,15 @@[m [mimport {[m
+   Assessment as AssessmentIcon,[m
+   Logout as LogoutIcon,[m
+   Search as SearchIcon,[m
+[31m-  Clear as ClearIcon[m
+[32m+[m[32m  Clear as ClearIcon,[m
+[32m+[m[32m  Info as InfoIcon[m
+ } from '@mui/icons-material';[m
+ [m
+ // ✅ IMPORT MÁQUINAS Y SITIOS[m
+ import MachinesSites from './pages/MachinesSites';[m
+ import MachinesSitesService from './services/machinesSitesService';[m
+[32m+[m[32mimport UserProfile from './pages/UserProfile';[m
+[32m+[m[32mimport WorkingImageDiagnosticModal from './components/WorkingImageDiagnosticModal';[m
+ [m
+ // ========================================================================[m
+ // THEME CONFIGURATION[m
+[36m@@ -85,7 +90,11 @@[m [mconst api = {[m
+   fetchStats: () => axios.get(`${API_BASE_URL}/api/cloud/estadisticas`, { headers: getAuthHeaders() }),[m
+   fetchImage: (scanId, tipo) => axios.get([m
+     `${API_BASE_URL}/api/cloud/escaneo/${scanId}/imagen?tipo=${tipo}`,[m
+[31m-    { headers: getAuthHeaders(), timeout: 30000 }[m
+[32m+[m[32m    {[m[41m [m
+[32m+[m[32m      headers: getAuthHeaders(),[m[41m [m
+[32m+[m[32m      timeout: 60000, // Aumentar timeout a 60 segundos[m
+[32m+[m[32m      responseType: 'json'[m
+[32m+[m[32m    }[m
+   )[m
+ };[m
+ [m
+[36m@@ -93,22 +102,7 @@[m [mconst api = {[m
+ // UTILITY & FORMATTING FUNCTIONS[m
+ // ========================================================================[m
+ const formatDate = (dateInput) => {[m
+[31m-    if (!dateInput) return 'N/A';[m
+[31m-    let date;[m
+[31m-    if (typeof dateInput === 'string') {[m
+[31m-        const isoUtcDateTime = dateInput.replace(' ', 'T') + 'Z';[m
+[31m-        date = new Date(isoUtcDateTime);[m
+[31m-    } else {[m
+[31m-        date = new Date(dateInput);[m
+[31m-    }[m
+[31m-    if (isNaN(date.getTime())) {[m
+[31m-        return 'Fecha inválida';[m
+[31m-    }[m
+[31m-    return date.toLocaleString('es-AR', {[m
+[31m-        timeZone: 'America/Argentina/Buenos_Aires',[m
+[31m-        year: 'numeric', month: '2-digit', day: '2-digit',[m
+[31m-        hour: '2-digit', minute: '2-digit', hourCycle: 'h23'[m
+[31m-    });[m
+[32m+[m[32m    return formatDateArgentina(dateInput);[m
+ };[m
+ [m
+ const formatDimensionCm = (mmValue) => {[m
+[36m@@ -137,12 +131,30 @@[m [mconst getUsuarioValue = (escaneo) => {[m
+     return 'N/D';[m
+ };[m
+ [m
+[31m-const hasImage = (escaneo, tipo) => {[m
+[32m+[m[32m  // Función mejorada para verificar si una imagen existe[m
+[32m+[m[32m  const hasImage = (escaneo, tipo) => {[m
+     const flag = tipo === '3d' ? escaneo.tiene_imagen_3d : escaneo.tiene_imagen_camara;[m
+     const image = tipo === '3d' ? escaneo.imagen_3d : escaneo.imagen_camara;[m
+     const filename = tipo === '3d' ? escaneo.imagen_3d_filename : escaneo.imagen_camara_filename;[m
+[31m-    return !!(flag || (image && image.length > 0) || (filename && filename !== ''));[m
+[31m-};[m
+[32m+[m
+[32m+[m[32m    const hasImageFlag = !!flag;[m
+[32m+[m[32m    const hasImageData = !!(image && image.length > 0);[m
+[32m+[m[32m    const hasFilename = !!(filename && filename !== '');[m
+[32m+[m
+[32m+[m[32m    const result = !!(hasImageFlag || hasImageData || hasFilename);[m
+[32m+[m
+[32m+[m[32m    // Logging para debug[m
+[32m+[m[32m    if (escaneo.serial) {[m
+[32m+[m[32m      console.log(`🔍 Verificando imagen ${tipo} para ${escaneo.serial}:`, {[m
+[32m+[m[32m        flag: hasImageFlag,[m
+[32m+[m[32m        imageData: hasImageData,[m
+[32m+[m[32m        filename: hasFilename,[m
+[32m+[m[32m        result: result[m
+[32m+[m[32m      });[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    return result;[m
+[32m+[m[32m  };[m
+ [m
+ // 1. Formatear la fecha:[m
+ const formatFechaLegible = (escaneo) => {[m
+[36m@@ -329,6 +341,8 @@[m [mconst Dashboard = ({ onLogout }) => {[m
+   const [selectedImage, setSelectedImage] = useState(null);[m
+   const [imageDialogOpen, setImageDialogOpen] = useState(false);[m
+   const [loadingImages, setLoadingImages] = useState({});[m
+[32m+[m[32m  const [diagnosticModalOpen, setDiagnosticModalOpen] = useState(false);[m
+[32m+[m[32m  const [diagnosticData, setDiagnosticData] = useState(null);[m
+   const [searchSN, setSearchSN] = useState('');[m
+   const [paginaActual, setPaginaActual] = useState(1);[m
+   const [totalPaginas, setTotalPaginas] = useState(1);[m
+[36m@@ -378,11 +392,25 @@[m [mconst Dashboard = ({ onLogout }) => {[m
+     setEscaneosFiltrados(filtrados);[m
+   }, [escaneos, searchSN, filtroSitio, filtroMaquina]);[m
+ [m
+[31m-  const handleViewImage = async (scanId, tipo) => {[m
+[32m+[m[32m  // Función mejorada para manejar la carga de imágenes[m
+[32m+[m[32m  const handleViewImage = async (scanId, tipo, forceCheck = false) => {[m
+[32m+[m[32m    console.log(`🖼️ Intentando cargar imagen ${tipo} para scanId: ${scanId}`);[m
+     setLoadingImages(prev => ({ ...prev, [`${scanId}_${tipo}`]: true }));[m
+[32m+[m
+     try {[m
+[32m+[m[32m      // Verificar token antes de hacer la petición[m
+[32m+[m[32m      const token = localStorage.getItem('authToken');[m
+[32m+[m[32m      if (!token) {[m
+[32m+[m[32m        throw new Error('No hay token de autenticación');[m
+[32m+[m[32m      }[m
+[32m+[m
+[32m+[m[32m      console.log(`🔑 Token encontrado, haciendo petición a la API...`);[m
+       const response = await api.fetchImage(scanId, tipo);[m
+[32m+[m
+[32m+[m[32m      console.log(`📡 Respuesta recibida:`, response.data);[m
+[32m+[m
+       if (response.data.success && response.data.imagen_base64) {[m
+[32m+[m[32m        console.log(`✅ Imagen cargada exitosamente`);[m
+         setSelectedImage({[m
+           base64: response.data.imagen_base64,[m
+           filename: response.data.filename || `imagen_${tipo}_${scanId}`,[m
+[36m@@ -392,23 +420,143 @@[m [mconst Dashboard = ({ onLogout }) => {[m
+         });[m
+         setImageDialogOpen(true);[m
+       } else {[m
+[31m-        alert(`No se pudo cargar la imagen ${tipo}.`);[m
+[32m+[m[32m        console.error(`❌ Respuesta sin éxito:`, response.data);[m
+[32m+[m[32m        // Mostrar mensaje más amigable[m
+[32m+[m[32m        const errorMessage = response.data.message || `No se pudo cargar la imagen ${tipo}`;[m
+[32m+[m[32m        alert(`⚠️ ${errorMessage}\n\n💡 Sugerencia: Usa el diagnóstico para verificar el estado de la imagen.`);[m
+       }[m
+[31m-    } catch {[m
+[31m-      alert('Error al cargar la imagen');[m
+[32m+[m[32m    } catch (error) {[m
+[32m+[m[32m      console.error(`❌ Error cargando imagen ${tipo}:`, error);[m
+[32m+[m
+[32m+[m[32m      let errorMessage = 'Error al cargar la imagen';[m
+[32m+[m[32m      let suggestion = '';[m
+[32m+[m
+[32m+[m[32m      if (error.response) {[m
+[32m+[m[32m        console.error('Respuesta del servidor:', error.response.data);[m
+[32m+[m[32m        console.error('Status:', error.response.status);[m
+[32m+[m
+[32m+[m[32m        if (error.response.status === 401) {[m
+[32m+[m[32m          errorMessage = 'Error de autenticación. Por favor, vuelve a iniciar sesión.';[m
+[32m+[m[32m          suggestion = '🔑 Tu sesión ha expirado. Inicia sesión nuevamente.';[m
+[32m+[m[32m        } else if (error.response.status === 404) {[m
+[32m+[m[32m          errorMessage = `La imagen ${tipo} no exi
