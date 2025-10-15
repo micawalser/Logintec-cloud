@@ -95,6 +95,113 @@ class ApiService {
     });
     return response.data;
   }
+
+  // ============================================================================
+  // 🆕 NUEVOS ENDPOINTS PARA SITIOS Y MÁQUINAS
+  // ============================================================================
+
+  /**
+   * 🆕 Obtiene todos los sitios del cliente (usando endpoint real del backend)
+   */
+  static async getSitios() {
+    const response = await axios.get(`${API_BASE_URL}/api/cloud/sitios`, {
+      headers: this.getAuthHeaders()
+    });
+    return response.data;
+  }
+
+  /**
+   * 🆕 Obtiene todas las máquinas disponibles (usando endpoint real del backend)
+   */
+  static async getMaquinas() {
+    const response = await axios.get(`${API_BASE_URL}/api/cloud/maquinas`, {
+      headers: this.getAuthHeaders()
+    });
+    return response.data;
+  }
+
+  /**
+   * 🆕 Obtiene escaneos del cliente (usando endpoint real del backend)
+   */
+  static async getEscaneosCliente(page = 1, pageSize = 100) {
+    const response = await axios.get(`${API_BASE_URL}/api/cloud/escaneos`, {
+      headers: this.getAuthHeaders(),
+      params: { page, page_size: pageSize }
+    });
+    return response.data;
+  }
+
+  /**
+   * 🆕 Crea un nuevo sitio
+   */
+  static async crearSitio(sitioData) {
+    const response = await axios.post(`${API_BASE_URL}/api/cloud/sitios`, sitioData, {
+      headers: this.getAuthHeaders()
+    });
+    return response.data;
+  }
+
+  /**
+   * 🆕 Actualiza un sitio existente
+   */
+  static async actualizarSitio(idsitio, sitioData) {
+    const response = await axios.put(`${API_BASE_URL}/api/cloud/sitios/${idsitio}`, sitioData, {
+      headers: this.getAuthHeaders()
+    });
+    return response.data;
+  }
+
+  /**
+   * 🆕 Obtiene escaneos de un sitio específico
+   */
+  static async getEscaneosPorSitio(idsitio, page = 1, pageSize = 100) {
+    const response = await axios.get(
+      `${API_BASE_URL}/api/cloud/sitios/${idsitio}/escaneos?page=${page}&page_size=${pageSize}`, 
+      { headers: this.getAuthHeaders() }
+    );
+    return response.data;
+  }
+
+  /**
+   * 🆕 Obtiene estadísticas de un sitio específico
+   */
+  static async getEstadisticasSitio(idsitio) {
+    const response = await axios.get(
+      `${API_BASE_URL}/api/cloud/sitios/${idsitio}/estadisticas`, 
+      { headers: this.getAuthHeaders() }
+    );
+    return response.data;
+  }
+
+  /**
+   * 🆕 Obtiene datos del dashboard con información agrupada por sitio
+   */
+  static async getDashboard() {
+    const response = await axios.get(`${API_BASE_URL}/api/cloud/dashboard`, {
+      headers: this.getAuthHeaders()
+    });
+    return response.data;
+  }
+
+  /**
+   * 🆕 Obtiene máquinas asignadas al cliente
+   */
+  static async getMaquinasCliente() {
+    const response = await axios.get(`${API_BASE_URL}/api/cloud/maquinas`, {
+      headers: this.getAuthHeaders()
+    });
+    return response.data;
+  }
+
+  /**
+   * 🆕 Obtiene último escaneo por máquina
+   */
+  static async getUltimoEscaneoPorMaquina() {
+    const response = await axios.get(`${API_BASE_URL}/api/cloud/maquinas/ultimo_escaneo`, {
+      headers: this.getAuthHeaders()
+    });
+    return response.data;
+  }
 }
 
 export default ApiService;

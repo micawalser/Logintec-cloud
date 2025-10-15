@@ -327,12 +327,12 @@ const getUsuarioValue = (escaneo) => {
 
     // Logging para debug
     if (escaneo.serial) {
-      console.log(`🔍 Verificando imagen ${tipo} para ${escaneo.serial}:`, {
-        flag: hasImageFlag,
-        imageData: hasImageData,
-        filename: hasFilename,
-        result: result
-      });
+      // console.log(`🔍 Verificando imagen ${tipo} para ${escaneo.serial}:`, {
+      //   flag: hasImageFlag,
+      //   imageData: hasImageData,
+      //   filename: hasFilename,
+      //   result: result
+      // });
     }
 
     return result;
@@ -616,12 +616,12 @@ const Dashboard = ({ onLogout }) => {
       ]);
       
       setSitiosUnicos(sitios.map(s => s.nombre).filter(Boolean));
-      setMaquinasUnicas(maquinas.map(m => m.modelo).filter(Boolean));
+      setMaquinasUnicas(maquinas.map(m => m.nombre).filter(Boolean));
       
-      console.log('✅ Filtros cargados:', {
-        sitios: sitios.length,
-        maquinas: maquinas.length
-      });
+      // console.log('✅ Filtros cargados:', {
+      //   sitios: sitios.length,
+      //   maquinas: maquinas.length
+      // });
     } catch (error) {
       console.error('❌ Error cargando filtros:', error);
     }
@@ -661,17 +661,21 @@ const Dashboard = ({ onLogout }) => {
       );
     }
     if (filtroSitio) {
-      filtrados = filtrados.filter(escaneo => escaneo.site_name === filtroSitio);
+      filtrados = filtrados.filter(escaneo => 
+        escaneo.sitio?.nombre === filtroSitio || escaneo.site_name === filtroSitio
+      );
     }
     if (filtroMaquina) {
-      filtrados = filtrados.filter(escaneo => escaneo.maquina_modelo === filtroMaquina);
+      filtrados = filtrados.filter(escaneo => 
+        escaneo.maquina?.nombre === filtroMaquina || escaneo.maquina_modelo === filtroMaquina
+      );
     }
     setEscaneosFiltrados(filtrados);
   }, [escaneos, searchSN, filtroSitio, filtroMaquina]);
 
   // Función mejorada para manejar la carga de imágenes
   const handleViewImage = async (scanId, tipo, forceCheck = false) => {
-    console.log(`🖼️ Intentando cargar imagen ${tipo} para scanId: ${scanId}`);
+    // console.log(`🖼️ Intentando cargar imagen ${tipo} para scanId: ${scanId}`);
     setLoadingImages(prev => ({ ...prev, [`${scanId}_${tipo}`]: true }));
 
     try {
@@ -681,13 +685,13 @@ const Dashboard = ({ onLogout }) => {
         throw new Error('No hay token de autenticación');
       }
 
-      console.log(`🔑 Token encontrado, haciendo petición a la API...`);
+      // console.log(`🔑 Token encontrado, haciendo petición a la API...`);
       const response = await api.fetchImage(scanId, tipo);
 
-      console.log(`📡 Respuesta recibida:`, response.data);
+      // console.log(`📡 Respuesta recibida:`, response.data);
 
       if (response.data.success && response.data.imagen_base64) {
-        console.log(`✅ Imagen cargada exitosamente`);
+        // console.log(`✅ Imagen cargada exitosamente`);
         setSelectedImage({
           base64: response.data.imagen_base64,
           filename: response.data.filename || `imagen_${tipo}_${scanId}`,
@@ -720,13 +724,13 @@ const Dashboard = ({ onLogout }) => {
         suggestion = '📸 Esta imagen no fue guardada o se perdió del servidor.';
         
         // Información adicional para diagnóstico
-        console.log('🔍 Diagnóstico 404:', {
-          scanId,
-          tipo,
-          url: `${API_BASE_URL}/api/cloud/escaneo/${scanId}/imagen?tipo=${tipo}`,
-          token: token ? 'Presente' : 'Ausente',
-          escaneo: escaneos.find(e => e.id === scanId)
-        });
+        // console.log('🔍 Diagnóstico 404:', {
+        //   scanId,
+        //   tipo,
+        //   url: `${API_BASE_URL}/api/cloud/escaneo/${scanId}/imagen?tipo=${tipo}`,
+        //   token: token ? 'Presente' : 'Ausente',
+        //   escaneo: escaneos.find(e => e.id === scanId)
+        // });
         } else if (error.response.status === 500) {
           errorMessage = 'Error interno del servidor. Inténtalo más tarde.';
           suggestion = '🔄 El servidor está teniendo problemas. Intenta más tarde.';
@@ -758,7 +762,7 @@ const Dashboard = ({ onLogout }) => {
 
   // Función para intentar cargar imágenes no marcadas como disponibles
   const handleTryLoadImage = async (scanId, tipo) => {
-    console.log(`🔍 Intentando cargar imagen ${tipo} no marcada como disponible para scanId: ${scanId}`);
+    // console.log(`🔍 Intentando cargar imagen ${tipo} no marcada como disponible para scanId: ${scanId}`);
     
     try {
       const token = localStorage.getItem('authToken');
@@ -776,7 +780,7 @@ const Dashboard = ({ onLogout }) => {
       const data = await response.json();
       
       if (response.ok && data.success && data.imagen_base64) {
-        console.log(`✅ ¡Imagen ${tipo} encontrada aunque no estaba marcada como disponible!`);
+        // console.log(`✅ ¡Imagen ${tipo} encontrada aunque no estaba marcada como disponible!`);
         setSelectedImage({
           base64: data.imagen_base64,
           filename: data.filename || `imagen_${tipo}_${scanId}`,
@@ -789,7 +793,7 @@ const Dashboard = ({ onLogout }) => {
         // Mostrar mensaje de éxito
         alert(`🎉 ¡Imagen ${tipo} encontrada!\n\nLa imagen existe en el servidor pero no estaba marcada como disponible en la base de datos.`);
       } else {
-        console.log(`❌ Imagen ${tipo} no encontrada en el servidor`);
+        // console.log(`❌ Imagen ${tipo} no encontrada en el servidor`);
         alert(`❌ La imagen ${tipo} no existe en el servidor.\n\nStatus: ${response.status}\nMensaje: ${data.message || 'No disponible'}`);
       }
     } catch (error) {
@@ -884,13 +888,12 @@ const Dashboard = ({ onLogout }) => {
               {filtrarDuplicadosPorSerial(escaneosFiltrados)
                 .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
                 .map((escaneo) => {
-                  console.log('ESCANEO:', escaneo.serial, 'PESO:', escaneo.peso, escaneo);
                   return (
                     <TableRow key={escaneo.id} hover>
                       <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.serial}</TableCell>
                       <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.usuario || escaneo.usuario_escaneo || escaneo.username || 'N/D'}</TableCell>
-                      <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.maquina_modelo || 'N/D'}</TableCell>
-                      <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.site_name || 'N/D'}</TableCell>
+                      <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.maquina?.nombre || escaneo.maquina_modelo || 'N/D'}</TableCell>
+                      <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.sitio?.nombre || escaneo.site_name || 'N/D'}</TableCell>
                       <TableCell sx={{ fontSize: '0.92rem' }}>{formatDate(escaneo.fecha)}</TableCell>
                       <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.ancho}</TableCell>
                       <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.largo}</TableCell>
@@ -965,12 +968,9 @@ const Dashboard = ({ onLogout }) => {
                               <IconButton 
                                 size="small" 
                                 onClick={() => {
-                                  console.log('🔍 Click en diagnóstico 3D para:', escaneo);
                                   const data = { scanId: escaneo.id, tipo: '3d', serial: escaneo.serial };
-                                  console.log('🔍 Datos del diagnóstico:', data);
                                   setDiagnosticData(data);
                                   setDiagnosticModalOpen(true);
-                                  console.log('🔍 Modal abierto:', true);
                                 }}
                                 sx={{ 
                                   color: escaneo.tiene_imagen_3d ? '#666666' : '#ff9800',
@@ -1055,12 +1055,9 @@ const Dashboard = ({ onLogout }) => {
                               <IconButton 
                                 size="small" 
                                 onClick={() => {
-                                  console.log('🔍 Click en diagnóstico cámara para:', escaneo);
                                   const data = { scanId: escaneo.id, tipo: 'camara', serial: escaneo.serial };
-                                  console.log('🔍 Datos del diagnóstico:', data);
                                   setDiagnosticData(data);
                                   setDiagnosticModalOpen(true);
-                                  console.log('🔍 Modal abierto:', true);
                                 }}
                                 sx={{ 
                                   color: escaneo.tiene_imagen_camara ? '#666666' : '#ff9800',
@@ -1203,20 +1200,16 @@ const Dashboard = ({ onLogout }) => {
       
       {/* Modal de Diagnóstico de Imágenes */}
       {diagnosticData && (
-        <>
-          {console.log('🔍 Renderizando modal con datos:', diagnosticData)}
-          <WorkingImageDiagnosticModal
-            open={diagnosticModalOpen}
-            onClose={() => {
-              console.log('🔍 Cerrando modal');
-              setDiagnosticModalOpen(false);
-              setDiagnosticData(null);
-            }}
-            scanId={diagnosticData.scanId}
-            tipo={diagnosticData.tipo}
-            serial={diagnosticData.serial}
-          />
-        </>
+        <WorkingImageDiagnosticModal
+          open={diagnosticModalOpen}
+          onClose={() => {
+            setDiagnosticModalOpen(false);
+            setDiagnosticData(null);
+          }}
+          scanId={diagnosticData.scanId}
+          tipo={diagnosticData.tipo}
+          serial={diagnosticData.serial}
+        />
       )}
     </>
   );

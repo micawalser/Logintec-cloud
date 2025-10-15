@@ -192,3 +192,8 @@ export const getImageInfo = async (scanId, tipo) => {
   }
 };
 
+
+
+
+
+

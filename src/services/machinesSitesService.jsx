@@ -1,32 +1,36 @@
 // src/Services/machinesSitesService.js
-// ✅ TEMPORAL - Usando datos mock para evitar errores de JSON
+// ✅ ACTUALIZADO - Usando endpoints de PostgreSQL para sitios y máquinas
 
 import axios from 'axios';
 import { formatDateArgentina } from '../utils/dateUtils';
+import ApiService from '../apiService';
 
 const API_BASE_URL = 'https://logintec-1.onrender.com';
+// El cliente_id se obtiene automáticamente del token JWT en el backend
 
 class MachinesSitesService {
   
   /**
-   * Obtiene información de la máquina de este sitio
+   * 🆕 Obtiene información de la máquina desde PostgreSQL
    */
   static getCurrentMachine() {
-    return null; // No longer using mockConfigData
+    // Ya no se usa - se obtiene desde PostgreSQL
+    return null;
   }
 
   /**
-   * Obtiene información del sitio actual
+   * 🆕 Obtiene información del sitio desde PostgreSQL
    */
   static getCurrentSite() {
-    return null; // No longer using mockConfigData
+    // Ya no se usa - se obtiene desde PostgreSQL
+    return null;
   }
 
   /**
    * Obtiene información del cliente
    */
   static getClientInfo() {
-    return null; // No longer using mockConfigData
+    return null;
   }
 
   /**
@@ -78,20 +82,19 @@ class MachinesSitesService {
   }
 
   /**
-   * ✅ NUEVO: Enriquece escaneos con datos de máquina/sitio
+   * ✅ ACTUALIZADO: Enriquece escaneos con datos de máquina/sitio desde PostgreSQL JOIN
    */
   static enrichScanWithMachineData(scan) {
-    const machine = this.getCurrentMachine();
-    const site = this.getCurrentSite();
-    
     return {
       ...scan,
-      // Agregar datos de máquina y sitio
-      machine_name: machine?.nombre || 'Máquina Desconocida',
-      machine_model: machine?.modelo || 'N/A',
-      site_name: site?.nombre || 'Sitio Desconocido',
-      site_type: site?.tipo || 'N/A',
-      site_location: site?.ubicacion || 'N/A'
+      // ✅ Usar datos del JOIN con sitios y máquinas
+      machine_name: scan.maquina?.nombre || scan.machine_nombre || scan.maquina_modelo || 'Máquina Desconocida',
+      machine_id: scan.machine_id || 'N/A',
+      machine_model: scan.maquina?.modelo || scan.machine_modelo || scan.maquina_modelo || 'N/A',
+      machine_descripcion: scan.machine_descripcion || 'N/A',
+      site_name: scan.sitio?.nombre || scan.site_name || 'Sitio Desconocido',
+      site_type: scan.site_type || scan.tipo_sitio || 'N/A',
+      site_location: scan.sitio?.ubicacion || scan.device_location || scan.site_location || 'Ubicación Desconocida'
     };
   }
 
@@ -155,166 +158,214 @@ class MachinesSitesService {
   }
 
   /**
-   * Obtiene todas las máquinas únicas a partir de los escaneos
+   * 🔧 Obtiene todas las máquinas desde el backend
    */
   static async getAllMachines() {
     try {
+      console.log('🔧 Obteniendo máquinas desde PostgreSQL...');
+      const response = await ApiService.getMaquinas();
+      
+      // Mapear respuesta del backend al formato esperado por el frontend
+      const maquinas = response.maquinas.map(maquina => ({
+        id: maquina.id,
+        nombre: maquina.nombre,
+        modelo: maquina.modelo,
+        fabricante: 'AGH', // Valor por defecto
+        descripcion: maquina.descripcion || '',
+        ip: '', // No disponible en el backend actual
+        mac: '', // No disponible en el backend actual
+        firmware: '', // No disponible en el backend actual
+        ultima_medicion: null // No disponible en el backend actual
+      }));
+      
+      console.log(`✅ Obtenidas ${maquinas.length} máquinas desde PostgreSQL`);
+      return maquinas;
+    } catch (error) {
+      console.error('❌ Error obteniendo máquinas desde PostgreSQL:', error);
+      console.log('⚠️ Usando fallback: obteniendo máquinas desde escaneos...');
+      return this.getAllMachinesFromScans();
+    }
+  }
+
+  /**
+   * 🔄 FALLBACK: Obtiene máquinas desde escaneos (método anterior)
+   */
+  static async getAllMachinesFromScans() {
+    try {
+      console.log('⚠️ Usando fallback: obteniendo máquinas desde escaneos...');
       const token = localStorage.getItem('authToken');
-      console.log('🔍 Token encontrado:', token ? 'SÍ' : 'NO');
       
-      console.log('📡 Obteniendo datos frescos de máquinas...');
-      
-      // Paginación inteligente: parar cuando tengamos suficientes máquinas
-      const allEscaneos = [];
-      let page = 1;
-      let hasMore = true;
-      const pageSize = 100;
-      let maquinasEncontradas = new Set();
-      
-      while (hasMore && page <= 5) { // Máximo 5 páginas (500 escaneos)
-        console.log(`📄 Obteniendo página ${page} para máquinas...`);
-        const response = await axios.get(`${API_BASE_URL}/api/cloud/escaneos?page=${page}&page_size=${pageSize}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        const items = response.data.items || [];
-        allEscaneos.push(...items);
-        
-        // Contar máquinas únicas en esta página
-        items.forEach(e => {
-          const key = e.maquina_serial || e.machine_serial_number;
-          if (key) maquinasEncontradas.add(key);
-        });
-        
-        console.log(`✅ Página ${page}: ${items.length} escaneos, ${maquinasEncontradas.size} máquinas únicas`);
-        
-        // Si hay menos de pageSize items, es la última página
-        hasMore = items.length === pageSize;
-        page++;
+      if (!token) {
+        console.log('⚠️ No hay token, usando datos mock temporales');
+        return this.getMockMachines();
       }
       
-      console.log(`📊 Total escaneos obtenidos para máquinas: ${allEscaneos.length}`);
-      console.log(`🔧 Máquinas únicas encontradas: ${maquinasEncontradas.size}`);
+      const response = await axios.get(`${API_BASE_URL}/api/cloud/escaneos?page=1&page_size=100`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       
+      const items = response.data.items || [];
       const maquinasMap = {};
-      allEscaneos.forEach((e, index) => {
-        const key = e.maquina_serial || e.machine_serial_number;
+      
+      items.forEach(e => {
+        const key = e.machine_id;
         if (key && !maquinasMap[key]) {
           maquinasMap[key] = {
             id: key,
-            modelo: e.maquina_modelo || e.machine_modelo,
-            firmware: e.maquina_firmware || e.machine_firmware_version,
-            ip: e.maquina_ip || e.machine_ip_address,
-            mac: e.maquina_mac || e.machine_mac_address,
-            ultima_medicion: e.maquina_ultima_medicion || e.machine_ultima_medicion,
+            nombre: e.maquina?.nombre || 'Máquina Desconocida',
+            modelo: e.maquina?.modelo || 'N/A',
             enabled: true
           };
         }
       });
       
-      const maquinas = Object.values(maquinasMap);
-      console.log('🔧 Máquinas únicas finales:', maquinas);
-      
-      // Si no hay máquinas, crear una por defecto
-      if (maquinas.length === 0) {
-        console.log('⚠️ No se encontraron máquinas, creando máquina por defecto');
-        return [{
-          id: 'default_machine',
-          modelo: 'Máquina por Defecto',
-          firmware: 'v1.0.0',
-          ip: '192.168.1.100',
-          mac: '00:00:00:00:00:00',
-          ultima_medicion: new Date().toISOString(),
-          enabled: true
-        }];
-      }
-      
-      return maquinas;
+      return Object.values(maquinasMap);
     } catch (error) {
-      console.error('❌ Error obteniendo máquinas:', error);
-      return [];
+      console.error('❌ Error en fallback de máquinas:', error);
+      console.log('⚠️ Usando datos mock como último recurso');
+      return this.getMockMachines();
     }
   }
 
   /**
-   * Obtiene todos los sitios únicos a partir de los escaneos
+   * 🏢 Obtiene todos los sitios desde el backend
    */
   static async getAllSites() {
     try {
+      console.log('🏢 Obteniendo sitios desde PostgreSQL...');
+      const response = await ApiService.getSitios();
+      
+      // Mapear respuesta del backend al formato esperado por el frontend
+      const sitios = response.sitios.map(sitio => ({
+        id: sitio.id,
+        nombre: sitio.nombre_sitio,
+        ubicacion: sitio.ubicacion || '',
+        tipo: 'PC', // Valor por defecto
+        ultima_conexion: sitio.ultimo_escaneo || null,
+        total_escaneos: sitio.total_escaneos || 0,
+        maquina: {
+          id: null, // No disponible en el endpoint actual
+          nombre: 'Máquina Asignada',
+          modelo: 'N/A'
+        }
+      }));
+      
+      console.log(`✅ Obtenidos ${sitios.length} sitios desde PostgreSQL`);
+      return sitios;
+    } catch (error) {
+      console.error('❌ Error obteniendo sitios desde PostgreSQL:', error);
+      console.log('⚠️ Usando fallback: obteniendo sitios desde escaneos...');
+      return this.getAllSitesFromScans();
+    }
+  }
+
+  /**
+   * 🔄 FALLBACK: Obtiene sitios desde escaneos (método anterior)
+   */
+  static async getAllSitesFromScans() {
+    try {
+      console.log('⚠️ Usando fallback: obteniendo sitios desde escaneos...');
       const token = localStorage.getItem('authToken');
-      console.log('🔍 Token encontrado:', token ? 'SÍ' : 'NO');
       
-      console.log('📡 Obteniendo datos frescos...');
-      
-      // Paginación inteligente: parar cuando tengamos suficientes sitios
-      const allEscaneos = [];
-      let page = 1;
-      let hasMore = true;
-      const pageSize = 100;
-      let sitiosEncontrados = new Set();
-      
-      while (hasMore && page <= 5) { // Máximo 5 páginas (500 escaneos)
-        console.log(`📄 Obteniendo página ${page}...`);
-        const response = await axios.get(`${API_BASE_URL}/api/cloud/escaneos?page=${page}&page_size=${pageSize}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        const items = response.data.items || [];
-        allEscaneos.push(...items);
-        
-        // Contar sitios únicos en esta página
-        items.forEach(e => {
-          const key = e.site_id || `no_id_${e.site_name}`;
-          if (key) sitiosEncontrados.add(key);
-        });
-        
-        console.log(`✅ Página ${page}: ${items.length} escaneos, ${sitiosEncontrados.size} sitios únicos`);
-        
-        // Si hay menos de pageSize items, es la última página
-        hasMore = items.length === pageSize;
-        page++;
+      if (!token) {
+        console.log('⚠️ No hay token, usando datos mock temporales');
+        return this.getMockSites();
       }
       
-      console.log(`📊 Total escaneos obtenidos: ${allEscaneos.length}`);
-      console.log(`🏢 Sitios únicos encontrados: ${sitiosEncontrados.size}`);
+      const response = await axios.get(`${API_BASE_URL}/api/cloud/escaneos?page=1&page_size=100`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       
+      const items = response.data.items || [];
       const sitiosMap = {};
-      allEscaneos.forEach((e, index) => {
-        // Usar site_name como clave si site_id es null/vacío
-        const key = e.site_id || `no_id_${e.site_name}`;
+      
+      items.forEach(e => {
+        const key = e.site_id;
         if (key && !sitiosMap[key]) {
           sitiosMap[key] = {
             id: key,
-            nombre: e.site_name,
-            tipo: e.tipo_sitio || e.site_type,
-            ubicacion: e.device_location || e.site_location,
-            estado: e.estado_sitio || e.site_status,
-            ultima_conexion: e.ultima_conexion || e.site_last_connection_human || e.site_last_connection
+            nombre: e.sitio?.nombre || 'Sitio Desconocido',
+            ubicacion: e.sitio?.ubicacion || 'Ubicación Desconocida',
+            tipo: 'PC',
+            estado: 'activo',
+            ultima_conexion: e.fecha
           };
         }
       });
       
-      const sitios = Object.values(sitiosMap);
-      console.log('🏢 Sitios únicos finales:', sitios);
-      
-      // Si no hay sitios, crear uno por defecto
-      if (sitios.length === 0) {
-        console.log('⚠️ No se encontraron sitios, creando sitio por defecto');
-        return [{
-          id: 'default_site',
-          nombre: 'Sitio por Defecto',
-          tipo: 'PC',
-          ubicacion: 'Ubicación no especificada',
-          estado: 'activo',
-          ultima_conexion: new Date().toISOString()
-        }];
-      }
-      
-      return sitios;
+      return Object.values(sitiosMap);
     } catch (error) {
-      console.error('❌ Error obteniendo sitios:', error);
-      return [];
+      console.error('❌ Error en fallback de sitios:', error);
+      console.log('⚠️ Usando datos mock como último recurso');
+      return this.getMockSites();
     }
+  }
+
+  /**
+   * 🔧 DATOS MOCK TEMPORALES para cuando no hay conexión
+   */
+  static getMockMachines() {
+    console.log('🔧 Usando datos mock de máquinas');
+    return [
+      {
+        id: 'mock_machine_1',
+        nombre: 'LS1000 Principal',
+        modelo: 'LS1000-Pro',
+        descripcion: 'Escáner LIDAR principal',
+        fabricante: 'AGH',
+        firmware: 'v2.1.3',
+        ip: '192.168.0.100',
+        mac: 'AA:BB:CC:DD:EE:FF',
+        ultima_medicion: new Date().toISOString(),
+        enabled: true
+      },
+      {
+        id: 'mock_machine_2',
+        nombre: 'Conlida CLD8000',
+        modelo: 'CLD-8000',
+        descripcion: 'Máquina de medición Conlida',
+        fabricante: 'Conlida',
+        firmware: 'v1.0.0',
+        ip: '192.168.0.101',
+        mac: 'BB:CC:DD:EE:FF:AA',
+        ultima_medicion: new Date().toISOString(),
+        enabled: true
+      }
+    ];
+  }
+
+  static getMockSites() {
+    console.log('🏢 Usando datos mock de sitios');
+    return [
+      {
+        id: 'mock_site_1',
+        nombre: 'PC San Martín',
+        ubicacion: 'Oficina San Martín - Buenos Aires',
+        tipo: 'PC',
+        estado: 'activo',
+        ultima_conexion: new Date().toISOString(),
+        total_escaneos: 1500,
+        maquina: {
+          idmachine: 1,
+          nombre: 'LS1000 Principal',
+          modelo: 'LS1000-Pro'
+        }
+      },
+      {
+        id: 'mock_site_2',
+        nombre: 'Depósito Central',
+        ubicacion: 'Depósito - Buenos Aires',
+        tipo: 'Depósito',
+        estado: 'activo',
+        ultima_conexion: new Date().toISOString(),
+        total_escaneos: 850,
+        maquina: {
+          idmachine: 2,
+          nombre: 'Conlida CLD8000',
+          modelo: 'CLD-8000'
+        }
+      }
+    ];
   }
 }
 

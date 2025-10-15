@@ -137,7 +137,7 @@ const MachinesSites = () => {
                     </ListItemIcon>
                     <ListItemText 
                       primary="Tipo de Sitio"
-                      secondary={site.tipo}
+                      secondary={site.tipo || 'PC'}
                     />
                   </ListItem>
                   <ListItem>
@@ -149,6 +149,17 @@ const MachinesSites = () => {
                       secondary={site.ubicacion}
                     />
                   </ListItem>
+                  {site.maquina && (
+                    <ListItem>
+                      <ListItemIcon>
+                        <MemoryIcon sx={{ color: '#07c7c3' }} />
+                      </ListItemIcon>
+                      <ListItemText 
+                        primary="Máquina Asignada"
+                        secondary={`${site.maquina.nombre || site.maquina.idmachine} - ${site.maquina.modelo}`}
+                      />
+                    </ListItem>
+                  )}
                   <ListItem>
                     <ListItemIcon>
                       <DeviceHubIcon sx={{ color: '#07c7c3' }} />
@@ -158,6 +169,24 @@ const MachinesSites = () => {
                       secondary={MachinesSitesService.formatDate(site.ultima_conexion)}
                     />
                   </ListItem>
+                  {site.total_escaneos !== undefined && (
+                    <ListItem>
+                      <ListItemText 
+                        primary="Total de Escaneos"
+                        secondary={
+                          <Chip 
+                            label={site.total_escaneos}
+                            size="small"
+                            sx={{ 
+                              backgroundColor: '#07c7c3',
+                              color: 'white',
+                              fontWeight: 600
+                            }}
+                          />
+                        }
+                      />
+                    </ListItem>
+                  )}
                 </List>
               </CardContent>
             </Card>
@@ -210,7 +239,7 @@ const MachinesSites = () => {
                 <List dense>
                   <ListItem>
                     <ListItemText 
-                      primary="Serial Number"
+                      primary="ID"
                       secondary={
                         <Typography 
                           variant="body2" 
@@ -223,42 +252,72 @@ const MachinesSites = () => {
                   </ListItem>
                   <ListItem>
                     <ListItemText 
+                      primary="Nombre"
+                      secondary={machine.nombre}
+                    />
+                  </ListItem>
+                  <ListItem>
+                    <ListItemText 
                       primary="Modelo"
                       secondary={machine.modelo}
                     />
                   </ListItem>
-                  <ListItem>
-                    <ListItemText 
-                      primary="Dirección IP"
-                      secondary={
-                        <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
-                          {machine.ip}
-                        </Typography>
-                      }
-                    />
-                  </ListItem>
-                  <ListItem>
-                    <ListItemText 
-                      primary="MAC Address"
-                      secondary={
-                        <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
-                          {machine.mac}
-                        </Typography>
-                      }
-                    />
-                  </ListItem>
-                  <ListItem>
-                    <ListItemText 
-                      primary="Firmware"
-                      secondary={machine.firmware}
-                    />
-                  </ListItem>
-                  <ListItem>
-                    <ListItemText 
-                      primary="Última Medición"
-                      secondary={MachinesSitesService.formatDate(machine.ultima_medicion)}
-                    />
-                  </ListItem>
+                  {machine.fabricante && machine.fabricante !== 'N/A' && (
+                    <ListItem>
+                      <ListItemText 
+                        primary="Fabricante"
+                        secondary={machine.fabricante}
+                      />
+                    </ListItem>
+                  )}
+                  {machine.descripcion && (
+                    <ListItem>
+                      <ListItemText 
+                        primary="Descripción"
+                        secondary={machine.descripcion}
+                      />
+                    </ListItem>
+                  )}
+                  {machine.ip && machine.ip !== 'N/A' && (
+                    <ListItem>
+                      <ListItemText 
+                        primary="Dirección IP"
+                        secondary={
+                          <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                            {machine.ip}
+                          </Typography>
+                        }
+                      />
+                    </ListItem>
+                  )}
+                  {machine.mac && machine.mac !== 'N/A' && (
+                    <ListItem>
+                      <ListItemText 
+                        primary="MAC Address"
+                        secondary={
+                          <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                            {machine.mac}
+                          </Typography>
+                        }
+                      />
+                    </ListItem>
+                  )}
+                  {machine.firmware && machine.firmware !== 'N/A' && (
+                    <ListItem>
+                      <ListItemText 
+                        primary="Firmware"
+                        secondary={machine.firmware}
+                      />
+                    </ListItem>
+                  )}
+                  {machine.ultima_medicion && machine.ultima_medicion !== 'N/A' && (
+                    <ListItem>
+                      <ListItemText 
+                        primary="Última Medición"
+                        secondary={MachinesSitesService.formatDate(machine.ultima_medicion)}
+                      />
+                    </ListItem>
+                  )}
                 </List>
               </CardContent>
             </Card>
