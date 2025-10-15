@@ -71,11 +71,10 @@ class MachinesSitesService {
     const site = this.getCurrentSite();
     
     // Estado básico del config
-    const basicStatus = machine?.enabled && site?.estado === 'activo';
+    const basicStatus = site?.estado === 'activo';
     
     return {
       isConnected: basicStatus,
-      machineEnabled: machine?.enabled || false,
       siteActive: site?.estado === 'activo',
       lastCheck: new Date().toISOString()
     };
@@ -138,7 +137,6 @@ class MachinesSitesService {
           firmware_version: escaneo.maquina_firmware,
           ultima_medicion: escaneo.maquina_ultima_medicion,
           ultima_medicion_legible: escaneo.maquina_ultima_medicion_legible,
-          enabled: true // o el campo que corresponda
         },
         site: {
           nombre: escaneo.site_name,
@@ -213,8 +211,7 @@ class MachinesSitesService {
           maquinasMap[key] = {
             id: key,
             nombre: e.maquina?.nombre || 'Máquina Desconocida',
-            modelo: e.maquina?.modelo || 'N/A',
-            enabled: true
+            modelo: e.maquina?.modelo || 'N/A'
           };
         }
       });
@@ -242,12 +239,7 @@ class MachinesSitesService {
         ubicacion: sitio.ubicacion || '',
         tipo: 'PC', // Valor por defecto
         ultima_conexion: sitio.ultimo_escaneo || null,
-        total_escaneos: sitio.total_escaneos || 0,
-        maquina: {
-          id: null, // No disponible en el endpoint actual
-          nombre: 'Máquina Asignada',
-          modelo: 'N/A'
-        }
+        total_escaneos: sitio.total_escaneos || 0
       }));
       
       console.log(`✅ Obtenidos ${sitios.length} sitios desde PostgreSQL`);
@@ -316,8 +308,7 @@ class MachinesSitesService {
         firmware: 'v2.1.3',
         ip: '192.168.0.100',
         mac: 'AA:BB:CC:DD:EE:FF',
-        ultima_medicion: new Date().toISOString(),
-        enabled: true
+        ultima_medicion: new Date().toISOString()
       },
       {
         id: 'mock_machine_2',
@@ -328,8 +319,7 @@ class MachinesSitesService {
         firmware: 'v1.0.0',
         ip: '192.168.0.101',
         mac: 'BB:CC:DD:EE:FF:AA',
-        ultima_medicion: new Date().toISOString(),
-        enabled: true
+        ultima_medicion: new Date().toISOString()
       }
     ];
   }
@@ -344,12 +334,7 @@ class MachinesSitesService {
         tipo: 'PC',
         estado: 'activo',
         ultima_conexion: new Date().toISOString(),
-        total_escaneos: 1500,
-        maquina: {
-          idmachine: 1,
-          nombre: 'LS1000 Principal',
-          modelo: 'LS1000-Pro'
-        }
+        total_escaneos: 1500
       },
       {
         id: 'mock_site_2',
@@ -358,12 +343,7 @@ class MachinesSitesService {
         tipo: 'Depósito',
         estado: 'activo',
         ultima_conexion: new Date().toISOString(),
-        total_escaneos: 850,
-        maquina: {
-          idmachine: 2,
-          nombre: 'Conlida CLD8000',
-          modelo: 'CLD-8000'
-        }
+        total_escaneos: 850
       }
     ];
   }

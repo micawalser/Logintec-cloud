@@ -867,20 +867,20 @@ const Dashboard = ({ onLogout }) => {
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
       ) : (
         <TableContainer component={Paper} sx={{ mt: 2 }}>
-          <Table>
+          <Table sx={{ minWidth: 1375 }}>
             <TableHead>
               <TableRow>
-                <TableCell sx={{ fontSize: '0.95rem' }}>Serial</TableCell>
-                <TableCell sx={{ fontSize: '0.95rem' }}>Usuario</TableCell>
-                <TableCell sx={{ fontSize: '0.95rem' }}>Máquina</TableCell>
-                <TableCell sx={{ fontSize: '0.95rem' }}>Sitio</TableCell>
-                <TableCell sx={{ fontSize: '0.95rem' }}>Fecha</TableCell>
-                <TableCell sx={{ fontSize: '0.95rem' }}>Ancho (cm)</TableCell>
-                <TableCell sx={{ fontSize: '0.95rem' }}>Largo (cm)</TableCell>
-                <TableCell sx={{ fontSize: '0.95rem' }}>Alto (cm)</TableCell>
-                <TableCell sx={{ fontSize: '0.95rem' }}>Volumen (dm³)</TableCell>
-                <TableCell sx={{ fontSize: '0.95rem' }}>Peso (kg)</TableCell>
-                <TableCell sx={{ fontSize: '0.95rem' }}>Imágenes</TableCell>
+                <TableCell sx={{ fontSize: '0.95rem', minWidth: 110 }}>Serial</TableCell>
+                <TableCell sx={{ fontSize: '0.95rem', minWidth: 90 }}>Usuario</TableCell>
+                <TableCell sx={{ fontSize: '0.95rem', minWidth: 140 }}>Máquina</TableCell>
+                <TableCell sx={{ fontSize: '0.95rem', minWidth: 140 }}>Sitio</TableCell>
+                <TableCell sx={{ fontSize: '0.95rem', minWidth: 130 }}>Fecha</TableCell>
+                <TableCell sx={{ fontSize: '0.95rem', minWidth: 85 }}>Ancho (cm)</TableCell>
+                <TableCell sx={{ fontSize: '0.95rem', minWidth: 85 }}>Largo (cm)</TableCell>
+                <TableCell sx={{ fontSize: '0.95rem', minWidth: 85 }}>Alto (cm)</TableCell>
+                <TableCell sx={{ fontSize: '0.95rem', minWidth: 95 }}>Volumen (dm³)</TableCell>
+                <TableCell sx={{ fontSize: '0.95rem', minWidth: 85 }}>Peso (kg)</TableCell>
+                <TableCell sx={{ fontSize: '0.95rem', minWidth: 120 }}>Imágenes</TableCell>
                 {/* Eliminar columna Acciones */}
               </TableRow>
             </TableHead>
@@ -894,7 +894,7 @@ const Dashboard = ({ onLogout }) => {
                       <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.usuario || escaneo.usuario_escaneo || escaneo.username || 'N/D'}</TableCell>
                       <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.maquina?.nombre || escaneo.maquina_modelo || 'N/D'}</TableCell>
                       <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.sitio?.nombre || escaneo.site_name || 'N/D'}</TableCell>
-                      <TableCell sx={{ fontSize: '0.92rem' }}>{formatDate(escaneo.fecha)}</TableCell>
+                      <TableCell sx={{ fontSize: '0.85rem' }}>{formatDate(escaneo.fecha)}</TableCell>
                       <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.ancho}</TableCell>
                       <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.largo}</TableCell>
                       <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.alto || escaneo.altura}</TableCell>
@@ -947,42 +947,8 @@ const Dashboard = ({ onLogout }) => {
                                      borderColor: '#ddd'
                                    }}
                                  />
-                                 <Tooltip title="Intentar cargar imagen 3D (puede existir aunque no esté marcada)">
-                                   <IconButton 
-                                     size="small" 
-                                     onClick={() => handleTryLoadImage(escaneo.id, '3d')}
-                                     sx={{ 
-                                       color: '#ff9800',
-                                       fontSize: '0.7rem',
-                                       minWidth: 'auto',
-                                       width: '20px',
-                                       height: '20px'
-                                     }}
-                                   >
-                                     <ImageIcon fontSize="inherit" />
-                                   </IconButton>
-                                 </Tooltip>
                                </Box>
                              )}
-                            <Tooltip title="Diagnosticar Imagen 3D">
-                              <IconButton 
-                                size="small" 
-                                onClick={() => {
-                                  const data = { scanId: escaneo.id, tipo: '3d', serial: escaneo.serial };
-                                  setDiagnosticData(data);
-                                  setDiagnosticModalOpen(true);
-                                }}
-                                sx={{ 
-                                  color: escaneo.tiene_imagen_3d ? '#666666' : '#ff9800',
-                                  fontSize: '0.7rem',
-                                  minWidth: 'auto',
-                                  width: '20px',
-                                  height: '20px'
-                                }}
-                              >
-                                <InfoIcon fontSize="inherit" />
-                              </IconButton>
-                            </Tooltip>
                           </Box>
 
                           {/* Imagen de Cámara */}
@@ -1034,42 +1000,8 @@ const Dashboard = ({ onLogout }) => {
                                      borderColor: '#ddd'
                                    }}
                                  />
-                                 <Tooltip title="Intentar cargar foto de cámara (puede existir aunque no esté marcada)">
-                                   <IconButton 
-                                     size="small" 
-                                     onClick={() => handleTryLoadImage(escaneo.id, 'camara')}
-                                     sx={{ 
-                                       color: '#ff9800',
-                                       fontSize: '0.7rem',
-                                       minWidth: 'auto',
-                                       width: '20px',
-                                       height: '20px'
-                                     }}
-                                   >
-                                     <CameraIcon fontSize="inherit" />
-                                   </IconButton>
-                                 </Tooltip>
                                </Box>
                              )}
-                            <Tooltip title="Diagnosticar Foto de Cámara">
-                              <IconButton 
-                                size="small" 
-                                onClick={() => {
-                                  const data = { scanId: escaneo.id, tipo: 'camara', serial: escaneo.serial };
-                                  setDiagnosticData(data);
-                                  setDiagnosticModalOpen(true);
-                                }}
-                                sx={{ 
-                                  color: escaneo.tiene_imagen_camara ? '#666666' : '#ff9800',
-                                  fontSize: '0.7rem',
-                                  minWidth: 'auto',
-                                  width: '20px',
-                                  height: '20px'
-                                }}
-                              >
-                                <InfoIcon fontSize="inherit" />
-                              </IconButton>
-                            </Tooltip>
                           </Box>
 
                           {/* Estado general */}
@@ -1187,7 +1119,7 @@ const Dashboard = ({ onLogout }) => {
           <Button color="inherit" onClick={onLogout} startIcon={<LogoutIcon />}>Salir</Button>
         </Toolbar>
       </AppBar>
-      <Container maxWidth="xl" sx={{ py: 4 }}>
+      <Container maxWidth="xl" sx={{ py: 4, px: 4 }}>
         <Paper elevation={0} sx={{ mb: 3 }}>
           <Tabs value={currentTab} onChange={(e, val) => setCurrentTab(val)} variant="fullWidth">
             <Tab label="EQUIPOS" />

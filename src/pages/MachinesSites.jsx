@@ -11,8 +11,6 @@ import {
   Memory as MemoryIcon,
   LaptopMac as LaptopIcon,
   Smartphone as SmartphoneIcon,
-  CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon,
   Router as RouterIcon,
   Settings as SettingsIcon,
   DeviceHub as DeviceHubIcon
@@ -114,20 +112,7 @@ const MachinesSites = () => {
                       Sitio de Trabajo
                     </Typography>
                   </Box>
-                  <Box sx={{ ml: 'auto' }}>
-                    <Chip 
-                      label={site.estado?.toUpperCase()}
-                      size="small"
-                      sx={{ 
-                        fontWeight: 500,
-                        backgroundColor: site.estado === 'activo' ? '#07c7c3' : '#f44336',
-                        color: 'white',
-                        '&:hover': {
-                          backgroundColor: site.estado === 'activo' ? '#05a39f' : '#d32f2f'
-                        }
-                      }}
-                    />
-                  </Box>
+                  {/* Sin indicador de estado */}
                 </Box>
                 <Divider sx={{ my: 2 }} />
                 <List dense>
@@ -149,23 +134,12 @@ const MachinesSites = () => {
                       secondary={site.ubicacion}
                     />
                   </ListItem>
-                  {site.maquina && (
-                    <ListItem>
-                      <ListItemIcon>
-                        <MemoryIcon sx={{ color: '#07c7c3' }} />
-                      </ListItemIcon>
-                      <ListItemText 
-                        primary="Máquina Asignada"
-                        secondary={`${site.maquina.nombre || site.maquina.idmachine} - ${site.maquina.modelo}`}
-                      />
-                    </ListItem>
-                  )}
                   <ListItem>
                     <ListItemIcon>
                       <DeviceHubIcon sx={{ color: '#07c7c3' }} />
                     </ListItemIcon>
                     <ListItemText 
-                      primary="Última Conexión"
+                      primary="Último Escaneo"
                       secondary={MachinesSitesService.formatDate(site.ultima_conexion)}
                     />
                   </ListItem>
@@ -213,49 +187,15 @@ const MachinesSites = () => {
                   </Box>
                   <Box>
                     <Typography variant="h6" sx={{ fontWeight: 600, color: '#2C2C2C' }}>
-                      {machine.modelo}
+                      {machine.nombre}
                     </Typography>
                     <Typography variant="body2" sx={{ color: '#666666' }}>
                       Máquina de Escaneo
                     </Typography>
                   </Box>
-                  <Box sx={{ ml: 'auto' }}>
-                    <Chip 
-                      icon={machine.enabled ? <CheckCircleIcon /> : <CancelIcon />}
-                      label={machine.enabled ? 'HABILITADA' : 'DESHABILITADA'}
-                      size="small"
-                      sx={{ 
-                        fontWeight: 500,
-                        backgroundColor: machine.enabled ? '#5b3ea3' : '#f44336',
-                        color: 'white',
-                        '&:hover': {
-                          backgroundColor: machine.enabled ? '#3D2A73' : '#d32f2f'
-                        }
-                      }}
-                    />
-                  </Box>
                 </Box>
                 <Divider sx={{ my: 2 }} />
                 <List dense>
-                  <ListItem>
-                    <ListItemText 
-                      primary="ID"
-                      secondary={
-                        <Typography 
-                          variant="body2" 
-                          sx={{ fontFamily: 'monospace', backgroundColor: '#F5F5F5', p: 0.5, borderRadius: 1 }}
-                        >
-                          {machine.id}
-                        </Typography>
-                      }
-                    />
-                  </ListItem>
-                  <ListItem>
-                    <ListItemText 
-                      primary="Nombre"
-                      secondary={machine.nombre}
-                    />
-                  </ListItem>
                   <ListItem>
                     <ListItemText 
                       primary="Modelo"
@@ -267,14 +207,6 @@ const MachinesSites = () => {
                       <ListItemText 
                         primary="Fabricante"
                         secondary={machine.fabricante}
-                      />
-                    </ListItem>
-                  )}
-                  {machine.descripcion && (
-                    <ListItem>
-                      <ListItemText 
-                        primary="Descripción"
-                        secondary={machine.descripcion}
                       />
                     </ListItem>
                   )}
