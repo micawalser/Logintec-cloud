@@ -11,6 +11,7 @@
       "scan": "/api/registro_escaneo",
       "health": "/api/health",
       "upload": "/api/upload_image",
+      "upload_conlida": "/api/upload_image_conlida",
       "test": "/api/test_connection"
     },
     "timeout": 30,

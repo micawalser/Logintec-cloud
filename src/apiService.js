@@ -202,6 +202,36 @@ class ApiService {
     });
     return response.data;
   }
+
+  /**
+   * 🆕 Sube imagen desde máquina Conlida
+   * @param {string} token - Token de autenticación del scanner
+   * @param {string} serial - Serial del escaneo
+   * @param {string} tipo - Tipo de imagen ('3d' o 'camara')
+   * @param {File} file - Archivo de imagen
+   * @returns {Promise<object>} Respuesta del servidor
+   */
+  static async uploadImageConlida(token, serial, tipo, file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('token', token);
+    formData.append('serial', serial);
+    formData.append('tipo', tipo);
+
+    const response = await axios.post(
+      `${API_BASE_URL}/api/upload_image_conlida`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 300000, // 5 minutos de timeout para subida de imágenes
+        maxContentLength: 50 * 1024 * 1024, // 50MB máximo
+        maxBodyLength: 50 * 1024 * 1024, // 50MB máximo
+      }
+    );
+    return response.data;
+  }
 }
 
 export default ApiService;

@@ -18,6 +18,7 @@ import {
   Logout as LogoutIcon,
   Search as SearchIcon,
   Clear as ClearIcon,
+  Add as AddIcon,
   Info as InfoIcon
 } from '@mui/icons-material';
 
@@ -170,15 +171,64 @@ const DEMO_DATA = {
       tiene_imagen_camara: false,
       imagen_3d_filename: null,
       imagen_camara_filename: null
+    },
+    // 🆕 EJEMPLO DE VOXEL CAM CON MÚLTIPLES BULTOS
+    {
+      id: 6,
+      serial: 'VOXEL_CAM_001',
+      usuario: 'Voxel Cam App',
+      usuario_escaneo: 'voxel_cam_app',
+      maquina_modelo: 'Voxel Cam Pro',
+      site_name: 'PC San Martín',
+      fecha: '2024-01-16T14:20:00Z',
+      // Datos agregados del lote
+      cantidad_bultos: 4,
+      volumen_total: 367.72,
+      peso_total: 64.6,
+      // Datos individuales de cada bulto
+      bultos_individuales: [
+        {
+          ancho: 25.5,
+          largo: 30.2,
+          alto: 15.8,
+          volumen: 12150.78,
+          peso: 2.3
+        },
+        {
+          ancho: 18.3,
+          largo: 22.1,
+          alto: 12.5,
+          volumen: 5056.125,
+          peso: 1.8
+        },
+        {
+          ancho: 22.1,
+          largo: 28.5,
+          alto: 18.2,
+          volumen: 11456.37,
+          peso: 3.1
+        },
+        {
+          ancho: 19.8,
+          largo: 25.3,
+          alto: 14.1,
+          volumen: 7056.234,
+          peso: 2.8
+        }
+      ],
+      tiene_imagen_3d: true,
+      tiene_imagen_camara: true,
+      imagen_3d_filename: 'voxel_cam_001_3d.jpg',
+      imagen_camara_filename: 'voxel_cam_001_cam.jpg'
     }
   ],
   estadisticas: {
-    total_escaneos: 5,
-    escaneos_hoy: 1,
-    escaneos_semana: 3,
-    escaneos_mes: 5,
-    volumen_total: 87299.789,
-    peso_total: 15.0
+    total_escaneos: 6,
+    escaneos_hoy: 2,
+    escaneos_semana: 4,
+    escaneos_mes: 6,
+    volumen_total: 90967.509,
+    peso_total: 77.1
   }
 };
 
@@ -519,7 +569,7 @@ const EscaneosTable = ({ escaneos, onViewImage, loadingImages }) => {
           <TableRow>
             <TableCell>Serial</TableCell><TableCell>Usuario</TableCell><TableCell>Máquina</TableCell><TableCell>Sitio</TableCell><TableCell>Fecha</TableCell>
             <TableCell>Ancho (cm)</TableCell><TableCell>Largo (cm)</TableCell><TableCell>Alto (cm)</TableCell>
-            <TableCell>Volumen (dm³)</TableCell><TableCell>Peso (kg)</TableCell><TableCell>Imágenes</TableCell><TableCell>Acciones</TableCell>
+            <TableCell>Volumen (dm³)</TableCell><TableCell>Peso (kg)</TableCell><TableCell>Imágenes</TableCell><TableCell>Acciones</TableCell><TableCell>Detalle</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -575,6 +625,22 @@ const EscaneosTable = ({ escaneos, onViewImage, loadingImages }) => {
                     <IconButton size="small" sx={{ color: '#5b3ea3' }}><ViewIcon fontSize="small" /></IconButton>
                   </Tooltip>
                 </TableCell>
+                <TableCell>
+                  {/* Mostrar ícono + si tiene detalles de bultos, sino gris */}
+                  {escaneo.cantidad_bultos && escaneo.cantidad_bultos > 1 ? (
+                    <Tooltip title="Ver detalles de bultos individuales">
+                      <IconButton size="small" sx={{ color: '#5b3ea3' }} onClick={() => handleViewDetalleBultos(escaneo)}>
+                        <AddIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  ) : (
+                    <Tooltip title="Sin detalles adicionales">
+                      <IconButton size="small" disabled sx={{ color: '#ccc' }}>
+                        <AddIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </TableCell>
               </TableRow>
             );
           })}
@@ -605,6 +671,8 @@ const Dashboard = ({ onLogout }) => {
   const [filtroMaquina, setFiltroMaquina] = useState('');
   const [sitiosUnicos, setSitiosUnicos] = useState([]);
   const [maquinasUnicas, setMaquinasUnicas] = useState([]);
+  const [detalleBultosModalOpen, setDetalleBultosModalOpen] = useState(false);
+  const [detalleBultosData, setDetalleBultosData] = useState(null);
 
   // Cargar todos los sitios y máquinas para los filtros
   const loadFilterOptions = useCallback(async () => {
@@ -802,6 +870,12 @@ const Dashboard = ({ onLogout }) => {
     }
   };
 
+  // Función para abrir modal de detalles de bultos
+  const handleViewDetalleBultos = (escaneo) => {
+    setDetalleBultosData(escaneo);
+    setDetalleBultosModalOpen(true);
+  };
+
   // TAB ESCANEOS
   const renderEscaneosTab = () => (
     <>
@@ -881,7 +955,7 @@ const Dashboard = ({ onLogout }) => {
                 <TableCell sx={{ fontSize: '0.95rem', minWidth: 95 }}>Volumen (dm³)</TableCell>
                 <TableCell sx={{ fontSize: '0.95rem', minWidth: 85 }}>Peso (kg)</TableCell>
                 <TableCell sx={{ fontSize: '0.95rem', minWidth: 120 }}>Imágenes</TableCell>
-                {/* Eliminar columna Acciones */}
+                <TableCell sx={{ fontSize: '0.95rem', minWidth: 80 }}>Detalle</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -1019,6 +1093,23 @@ const Dashboard = ({ onLogout }) => {
                           )}
                         </Box>
                       </TableCell>
+                      {/* Columna Detalle */}
+                      <TableCell sx={{ fontSize: '0.92rem', textAlign: 'center' }}>
+                        {/* Mostrar ícono + si tiene detalles de bultos, sino gris */}
+                        {escaneo.cantidad_bultos && escaneo.cantidad_bultos > 1 ? (
+                          <Tooltip title="Ver detalles de bultos individuales">
+                            <IconButton size="small" sx={{ color: '#5b3ea3' }} onClick={() => handleViewDetalleBultos(escaneo)}>
+                              <AddIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        ) : (
+                          <Tooltip title="Sin detalles adicionales">
+                            <IconButton size="small" disabled sx={{ color: '#ccc' }}>
+                              <AddIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                      </TableCell>
                       {/* Eliminar columna Acciones */}
                     </TableRow>
                   );
@@ -1055,6 +1146,67 @@ const Dashboard = ({ onLogout }) => {
               alt={selectedImage.filename}
               style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: 8, boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)' }}
             />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Detalles de Bultos */}
+      <Dialog open={detalleBultosModalOpen} onClose={() => setDetalleBultosModalOpen(false)} maxWidth="lg" fullWidth>
+        <DialogTitle sx={{ background: 'linear-gradient(135deg, #5b3ea3 0%, #7B5BB8 100%)', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6">Detalles de Bultos - {detalleBultosData?.serial}</Typography>
+          <IconButton onClick={() => setDetalleBultosModalOpen(false)} sx={{ color: 'white' }}><CloseIcon /></IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 3 }}>
+          {detalleBultosData && (
+            <>
+              {/* Resumen del lote */}
+              <Box sx={{ mb: 3, p: 2, bgcolor: '#f5f5f5', borderRadius: 2 }}>
+                <Typography variant="h6" sx={{ mb: 1 }}>Resumen del Lote</Typography>
+                <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                  <Chip label={`${detalleBultosData.cantidad_bultos || 1} bultos`} color="primary" />
+                  <Chip label={`Volumen total: ${formatVolumeSmart(detalleBultosData.volumen_total || detalleBultosData.volumen)}`} color="secondary" />
+                  <Chip label={`Peso total: ${formatPesoKg(detalleBultosData.peso_total || detalleBultosData.peso)}`} color="default" />
+                </Box>
+              </Box>
+
+              {/* Tabla de bultos individuales */}
+              <TableContainer component={Paper}>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Bulto</TableCell>
+                      <TableCell>Ancho (cm)</TableCell>
+                      <TableCell>Largo (cm)</TableCell>
+                      <TableCell>Alto (cm)</TableCell>
+                      <TableCell>Volumen (dm³)</TableCell>
+                      <TableCell>Peso (kg)</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {detalleBultosData.bultos_individuales && detalleBultosData.bultos_individuales.length > 0 ? (
+                      detalleBultosData.bultos_individuales.map((bulto, index) => (
+                        <TableRow key={index}>
+                          <TableCell><Chip label={`#${index + 1}`} size="small" /></TableCell>
+                          <TableCell>{formatDimensionCm(bulto.ancho)}</TableCell>
+                          <TableCell>{formatDimensionCm(bulto.largo)}</TableCell>
+                          <TableCell>{formatDimensionCm(bulto.alto)}</TableCell>
+                          <TableCell><Chip label={formatVolumeSmart(bulto.volumen)} size="small" color="secondary" variant="outlined" /></TableCell>
+                          <TableCell>{formatPesoKg(bulto.peso)}</TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6} sx={{ textAlign: 'center', py: 3 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            No hay detalles de bultos individuales disponibles
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </>
           )}
         </DialogContent>
       </Dialog>
