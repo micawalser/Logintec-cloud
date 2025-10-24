@@ -204,6 +204,18 @@ class ApiService {
   }
 
   /**
+   * 🆕 Obtiene detalles de bultos individuales desde la tabla escanos_detalle
+   * @param {number} escaneoId - ID del escaneo principal
+   * @returns {Promise<object>} Datos de los bultos individuales
+   */
+  static async getDetallesBultos(escaneoId) {
+    const response = await axios.get(`${API_BASE_URL}/api/cloud/escaneo/${escaneoId}/detalles`, {
+      headers: this.getAuthHeaders()
+    });
+    return response.data;
+  }
+
+  /**
    * 🆕 Sube imagen desde máquina Conlida
    * @param {string} token - Token de autenticación del scanner
    * @param {string} serial - Serial del escaneo

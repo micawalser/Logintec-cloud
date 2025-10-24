@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import ApiService from './apiService';
 import { formatDateArgentina } from './utils/dateUtils';
 import { checkAuthStatus, checkApiConnectivity, diagnoseImageProblem } from './utils/imageUtils';
 import {
@@ -617,7 +618,6 @@ const EscaneosTable = ({ escaneos, onViewImage, loadingImages }) => {
                          </span>
                       </Tooltip>
                     )}
-                    {!hasImage(escaneo, '3d') && !hasImage(escaneo, 'camara') && <Chip label="Sin imágenes" size="small" variant="outlined" />}
                   </Box>
                 </TableCell>
                 <TableCell>
@@ -673,6 +673,8 @@ const Dashboard = ({ onLogout }) => {
   const [maquinasUnicas, setMaquinasUnicas] = useState([]);
   const [detalleBultosModalOpen, setDetalleBultosModalOpen] = useState(false);
   const [detalleBultosData, setDetalleBultosData] = useState(null);
+  const [detalleBultosLoading, setDetalleBultosLoading] = useState(false);
+  const [detalleBultosError, setDetalleBultosError] = useState(null);
 
   // Cargar todos los sitios y máquinas para los filtros
   const loadFilterOptions = useCallback(async () => {
@@ -871,9 +873,64 @@ const Dashboard = ({ onLogout }) => {
   };
 
   // Función para abrir modal de detalles de bultos
-  const handleViewDetalleBultos = (escaneo) => {
-    setDetalleBultosData(escaneo);
+  const handleViewDetalleBultos = async (escaneo) => {
+    console.log('🚀 Iniciando handleViewDetalleBultos con escaneo:', escaneo);
+    console.log('📊 Datos del escaneo:', {
+      id: escaneo.id,
+      serial: escaneo.serial,
+      cantidad_bultos: escaneo.cantidad_bultos,
+      volumen: escaneo.volumen,
+      peso: escaneo.peso
+    });
+    
     setDetalleBultosModalOpen(true);
+    setDetalleBultosLoading(true);
+    setDetalleBultosError(null);
+    setDetalleBultosData(escaneo); // Datos básicos del escaneo
+
+    try {
+      console.log('🔄 Cargando detalles de bultos para escaneo:', escaneo.id);
+      
+      // Verificar si estamos en modo demo
+      if (isDemoMode()) {
+        // En modo demo, usar los datos que ya están en el escaneo
+        console.log('📊 Modo demo: usando datos existentes');
+        setDetalleBultosData(escaneo);
+        setDetalleBultosLoading(false);
+        return;
+      }
+
+      // Cargar detalles reales desde la API
+      console.log('🌐 Llamando a ApiService.getDetallesBultos con ID:', escaneo.id);
+      const detallesResponse = await ApiService.getDetallesBultos(escaneo.id);
+      console.log('✅ Detalles cargados:', detallesResponse);
+
+      // Combinar datos del escaneo con los detalles de bultos agrupados
+      const datosCompletos = {
+        ...escaneo,
+        bultos_agrupados: detallesResponse.bultos_agrupados || [],
+        total_grupos: detallesResponse.total_grupos || 0,
+        total_bultos: detallesResponse.total_bultos || escaneo.cantidad_bultos || 1,
+        volumen_total: detallesResponse.volumen_total || escaneo.volumen,
+        peso_total: detallesResponse.peso_total || escaneo.peso
+      };
+
+      console.log('📋 Datos completos para el modal:', datosCompletos);
+      setDetalleBultosData(datosCompletos);
+    } catch (error) {
+      console.error('❌ Error cargando detalles de bultos:', error);
+      setDetalleBultosError(error.message || 'Error al cargar los detalles de bultos');
+      
+      // Mantener los datos básicos del escaneo aunque falle la carga de detalles
+      setDetalleBultosData({
+        ...escaneo,
+        bultos_individuales: [],
+        cantidad_bultos: escaneo.cantidad_bultos || 1
+      });
+    } finally {
+      setDetalleBultosLoading(false);
+      console.log('✅ handleViewDetalleBultos completado');
+    }
   };
 
   // TAB ESCANEOS
@@ -981,134 +1038,105 @@ const Dashboard = ({ onLogout }) => {
                           {/* Imagen 3D */}
                           <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
                             {escaneo.tiene_imagen_3d ? (
-                              <>
-                                <Tooltip title="Ver Imagen 3D">
-                                  <span>
-                                    <IconButton 
-                                      size="small" 
-                                      onClick={() => handleViewImage(escaneo.id, '3d')} 
-                                      disabled={loadingImages[`${escaneo.id}_3d`]} 
-                                      sx={{ 
-                                        color: '#5b3ea3',
-                                        '&:hover': { backgroundColor: 'rgba(107, 44, 90, 0.1)' }
-                                      }}
-                                    >
-                                      {loadingImages[`${escaneo.id}_3d`] ? <CircularProgress size={16} /> : <ImageIcon fontSize="small" />}
-                                    </IconButton>
-                                  </span>
-                                </Tooltip>
-                                <Chip 
-                                  label="3D" 
-                                  size="small" 
-                                  color="primary" 
-                                  variant="outlined"
-                                  sx={{ fontSize: '0.6rem', height: '18px', minWidth: '30px' }}
-                                />
-                              </>
-                                                         ) : (
-                               <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
-                                 <Chip 
-                                   label="3D" 
-                                   size="small" 
-                                   color="default" 
-                                   variant="outlined"
-                                   sx={{ 
-                                     fontSize: '0.6rem', 
-                                     height: '18px', 
-                                     minWidth: '30px',
-                                     backgroundColor: '#f5f5f5',
-                                     color: '#999',
-                                     borderColor: '#ddd'
-                                   }}
-                                 />
-                               </Box>
-                             )}
+                              <Tooltip title="Ver Imagen 3D">
+                                <span>
+                                  <IconButton 
+                                    size="small" 
+                                    onClick={() => handleViewImage(escaneo.id, '3d')} 
+                                    disabled={loadingImages[`${escaneo.id}_3d`]} 
+                                    sx={{ 
+                                      color: '#5b3ea3',
+                                      '&:hover': { backgroundColor: 'rgba(107, 44, 90, 0.1)' }
+                                    }}
+                                  >
+                                    {loadingImages[`${escaneo.id}_3d`] ? <CircularProgress size={16} /> : <ImageIcon fontSize="small" />}
+                                  </IconButton>
+                                </span>
+                              </Tooltip>
+                            ) : (
+                              <Tooltip title="Intentar cargar imagen 3D">
+                                <span>
+                                  <IconButton 
+                                    size="small" 
+                                    onClick={() => handleTryLoadImage(escaneo.id, '3d')} 
+                                    sx={{ 
+                                      color: '#999',
+                                      '&:hover': { backgroundColor: 'rgba(153, 153, 153, 0.1)' }
+                                    }}
+                                  >
+                                    <ImageIcon fontSize="small" />
+                                  </IconButton>
+                                </span>
+                              </Tooltip>
+                            )}
                           </Box>
 
                           {/* Imagen de Cámara */}
                           <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
                             {escaneo.tiene_imagen_camara ? (
-                              <>
-                                <Tooltip title="Ver Foto de Cámara">
-                                  <span>
-                                    <IconButton 
-                                      size="small" 
-                                      onClick={() => handleViewImage(escaneo.id, 'camara')} 
-                                      disabled={loadingImages[`${escaneo.id}_camara`]} 
-                                      sx={{ 
-                                        color: '#07c7c3',
-                                        '&:hover': { backgroundColor: 'rgba(7, 199, 195, 0.1)' }
-                                      }}
-                                    >
-                                      {loadingImages[`${escaneo.id}_camara`] ? <CircularProgress size={16} /> : <CameraIcon fontSize="small" />}
-                                    </IconButton>
-                                  </span>
-                                </Tooltip>
-                                <Chip 
-                                  label="📷" 
-                                  size="small" 
-                                  sx={{ 
-                                    color: '#07c7c3',
-                                    borderColor: '#07c7c3',
-                                    fontSize: '0.6rem', 
-                                    height: '18px', 
-                                    minWidth: '30px',
-                                    '&:hover': { backgroundColor: 'rgba(7, 199, 195, 0.1)' }
-                                  }}
-                                  variant="outlined"
-                                />
-                              </>
-                                                         ) : (
-                               <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
-                                 <Chip 
-                                   label="📷" 
-                                   size="small" 
-                                   color="default" 
-                                   variant="outlined"
-                                   sx={{ 
-                                     fontSize: '0.6rem', 
-                                     height: '18px', 
-                                     minWidth: '30px',
-                                     backgroundColor: '#f5f5f5',
-                                     color: '#999',
-                                     borderColor: '#ddd'
-                                   }}
-                                 />
-                               </Box>
-                             )}
+                              <Tooltip title="Ver Foto de Cámara">
+                                <span>
+                                  <IconButton 
+                                    size="small" 
+                                    onClick={() => handleViewImage(escaneo.id, 'camara')} 
+                                    disabled={loadingImages[`${escaneo.id}_camara`]} 
+                                    sx={{ 
+                                      color: '#07c7c3',
+                                      '&:hover': { backgroundColor: 'rgba(7, 199, 195, 0.1)' }
+                                    }}
+                                  >
+                                    {loadingImages[`${escaneo.id}_camara`] ? <CircularProgress size={16} /> : <CameraIcon fontSize="small" />}
+                                  </IconButton>
+                                </span>
+                              </Tooltip>
+                            ) : (
+                              <Tooltip title="Intentar cargar imagen de cámara">
+                                <span>
+                                  <IconButton 
+                                    size="small" 
+                                    onClick={() => handleTryLoadImage(escaneo.id, 'camara')} 
+                                    sx={{ 
+                                      color: '#999',
+                                      '&:hover': { backgroundColor: 'rgba(153, 153, 153, 0.1)' }
+                                    }}
+                                  >
+                                    <CameraIcon fontSize="small" />
+                                  </IconButton>
+                                </span>
+                              </Tooltip>
+                            )}
                           </Box>
 
-                          {/* Estado general */}
-                          {!escaneo.tiene_imagen_3d && !escaneo.tiene_imagen_camara && (
-                            <Chip 
-                              label="Sin imágenes" 
-                              size="small" 
-                              variant="outlined" 
-                              sx={{ 
-                                color: '#666666',
-                                borderColor: '#ddd',
-                                fontSize: '0.75rem'
-                              }} 
-                            />
-                          )}
                         </Box>
                       </TableCell>
                       {/* Columna Detalle */}
                       <TableCell sx={{ fontSize: '0.92rem', textAlign: 'center' }}>
                         {/* Mostrar ícono + si tiene detalles de bultos, sino gris */}
-                        {escaneo.cantidad_bultos && escaneo.cantidad_bultos > 1 ? (
-                          <Tooltip title="Ver detalles de bultos individuales">
-                            <IconButton size="small" sx={{ color: '#5b3ea3' }} onClick={() => handleViewDetalleBultos(escaneo)}>
-                              <AddIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        ) : (
-                          <Tooltip title="Sin detalles adicionales">
-                            <IconButton size="small" disabled sx={{ color: '#ccc' }}>
-                              <AddIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        )}
+                        {(() => {
+                          const tieneMultiplesBultos = escaneo.cantidad_bultos && escaneo.cantidad_bultos > 1;
+                          console.log(`🔍 Escaneo ${escaneo.serial}: cantidad_bultos = ${escaneo.cantidad_bultos}, tieneMultiplesBultos = ${tieneMultiplesBultos}`);
+                          
+                          return tieneMultiplesBultos ? (
+                            <Tooltip title="Ver detalles de bultos individuales">
+                              <IconButton 
+                                size="small" 
+                                sx={{ color: '#5b3ea3' }} 
+                                onClick={() => {
+                                  console.log('🖱️ Click en detalles de bultos para:', escaneo.serial);
+                                  handleViewDetalleBultos(escaneo);
+                                }}
+                              >
+                                <AddIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          ) : (
+                            <Tooltip title={`Sin detalles adicionales (${escaneo.cantidad_bultos || 1} bulto${(escaneo.cantidad_bultos || 1) > 1 ? 's' : ''})`}>
+                              <IconButton size="small" disabled sx={{ color: '#ccc' }}>
+                                <AddIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          );
+                        })()}
                       </TableCell>
                       {/* Eliminar columna Acciones */}
                     </TableRow>
@@ -1157,48 +1185,83 @@ const Dashboard = ({ onLogout }) => {
           <IconButton onClick={() => setDetalleBultosModalOpen(false)} sx={{ color: 'white' }}><CloseIcon /></IconButton>
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
-          {detalleBultosData && (
+          {/* Estado de carga */}
+          {detalleBultosLoading && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 4 }}>
+              <CircularProgress sx={{ mr: 2 }} />
+              <Typography variant="body1">Cargando detalles de bultos...</Typography>
+            </Box>
+          )}
+
+          {/* Mensaje de error */}
+          {detalleBultosError && (
+            <Alert severity="warning" sx={{ mb: 3 }}>
+              <Typography variant="body2">
+                <strong>Advertencia:</strong> {detalleBultosError}
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 1 }}>
+                Se mostrarán los datos básicos del escaneo, pero los detalles individuales de bultos no están disponibles.
+              </Typography>
+            </Alert>
+          )}
+
+          {/* Contenido principal */}
+          {detalleBultosData && !detalleBultosLoading && (
             <>
               {/* Resumen del lote */}
               <Box sx={{ mb: 3, p: 2, bgcolor: '#f5f5f5', borderRadius: 2 }}>
                 <Typography variant="h6" sx={{ mb: 1 }}>Resumen del Lote</Typography>
                 <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-                  <Chip label={`${detalleBultosData.cantidad_bultos || 1} bultos`} color="primary" />
+                  <Chip label={`${detalleBultosData.total_bultos || detalleBultosData.cantidad_bultos || 1} bultos`} color="primary" />
+                  <Chip label={`${detalleBultosData.total_grupos || 1} grupos diferentes`} color="info" />
                   <Chip label={`Volumen total: ${formatVolumeSmart(detalleBultosData.volumen_total || detalleBultosData.volumen)}`} color="secondary" />
                   <Chip label={`Peso total: ${formatPesoKg(detalleBultosData.peso_total || detalleBultosData.peso)}`} color="default" />
                 </Box>
               </Box>
 
-              {/* Tabla de bultos individuales */}
+              {/* Tabla de grupos de bultos */}
               <TableContainer component={Paper}>
                 <Table>
                   <TableHead>
                     <TableRow>
-                      <TableCell>Bulto</TableCell>
+                      <TableCell>Grupo</TableCell>
+                      <TableCell>Cantidad</TableCell>
                       <TableCell>Ancho (cm)</TableCell>
                       <TableCell>Largo (cm)</TableCell>
                       <TableCell>Alto (cm)</TableCell>
-                      <TableCell>Volumen (dm³)</TableCell>
-                      <TableCell>Peso (kg)</TableCell>
+                      <TableCell>Volumen Unit. (dm³)</TableCell>
+                      <TableCell>Peso Unit. (kg)</TableCell>
+                      <TableCell>Volumen Total</TableCell>
+                      <TableCell>Peso Total</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {detalleBultosData.bultos_individuales && detalleBultosData.bultos_individuales.length > 0 ? (
-                      detalleBultosData.bultos_individuales.map((bulto, index) => (
+                    {detalleBultosData.bultos_agrupados && detalleBultosData.bultos_agrupados.length > 0 ? (
+                      detalleBultosData.bultos_agrupados.map((grupo, index) => (
                         <TableRow key={index}>
-                          <TableCell><Chip label={`#${index + 1}`} size="small" /></TableCell>
-                          <TableCell>{formatDimensionCm(bulto.ancho)}</TableCell>
-                          <TableCell>{formatDimensionCm(bulto.largo)}</TableCell>
-                          <TableCell>{formatDimensionCm(bulto.alto)}</TableCell>
-                          <TableCell><Chip label={formatVolumeSmart(bulto.volumen)} size="small" color="secondary" variant="outlined" /></TableCell>
-                          <TableCell>{formatPesoKg(bulto.peso)}</TableCell>
+                          <TableCell>
+                            <Chip label={`Grupo ${index + 1}`} size="small" color="primary" variant="outlined" />
+                          </TableCell>
+                          <TableCell>
+                            <Chip label={`${grupo.cantidad_grupos} bultos`} size="small" color="secondary" />
+                          </TableCell>
+                          <TableCell>{formatDimensionCm(grupo.ancho)}</TableCell>
+                          <TableCell>{formatDimensionCm(grupo.largo)}</TableCell>
+                          <TableCell>{formatDimensionCm(grupo.alto)}</TableCell>
+                          <TableCell><Chip label={formatVolumeSmart(grupo.volumen)} size="small" color="secondary" variant="outlined" /></TableCell>
+                          <TableCell>{formatPesoKg(grupo.peso)}</TableCell>
+                          <TableCell><Chip label={formatVolumeSmart(grupo.volumen_total_grupo)} size="small" color="info" /></TableCell>
+                          <TableCell><Chip label={formatPesoKg(grupo.peso_total_grupo)} size="small" color="warning" /></TableCell>
                         </TableRow>
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={6} sx={{ textAlign: 'center', py: 3 }}>
+                        <TableCell colSpan={9} sx={{ textAlign: 'center', py: 3 }}>
                           <Typography variant="body2" color="text.secondary">
-                            No hay detalles de bultos individuales disponibles
+                            {detalleBultosError 
+                              ? 'No se pudieron cargar los detalles de bultos agrupados'
+                              : 'No hay detalles de bultos agrupados disponibles'
+                            }
                           </Typography>
                         </TableCell>
                       </TableRow>
