@@ -396,9 +396,10 @@ const formatFechaLegible = (escaneo) => {
 };
 
 // Reemplazar función de formateo de volumen
-const formatVolumeSmart = (volumenMm3) => {
-  if (!volumenMm3 && volumenMm3 !== 0) return 'N/A';
-  let valor = (volumenMm3 / 1000000).toFixed(3);
+const formatVolumeSmart = (volumen) => {
+  if (!volumen && volumen !== 0) return 'N/A';
+  // ✅ Volumen ya viene en dm³ desde la BD, solo formatear
+  let valor = parseFloat(volumen).toFixed(3);
   valor = valor.replace(/\.0+$|(\.\d*?[1-9])0+$/, '$1');
   return `${valor} dm³`;
 };
@@ -704,7 +705,21 @@ const Dashboard = ({ onLogout }) => {
     try {
       const response = await api.fetchEscaneos(pagina);
       const { items, total, page, page_size } = response.data;
-      setEscaneos(items || []);
+      
+      // ✅ MAPEAR cantidad_total_bultos → cantidad_bultos para compatibilidad
+      const itemsMapeados = (items || []).map(escaneo => ({
+        ...escaneo,
+        cantidad_bultos: escaneo.cantidad_total_bultos || escaneo.cantidad_bultos || 1
+      }));
+      
+      // 🔍 DEBUG: Verificar que el mapeo funcione
+      itemsMapeados.forEach(e => {
+        if (e.cantidad_bultos > 1) {
+          console.log(`✅ Escaneo ${e.serial}: cantidad_bultos = ${e.cantidad_bultos}`);
+        }
+      });
+      
+      setEscaneos(itemsMapeados);
       setPaginaActual(page || 1);
       setTotalPaginas(Math.ceil((total || 0) / (page_size || pageSize)));
     } catch {
@@ -904,6 +919,8 @@ const Dashboard = ({ onLogout }) => {
       console.log('🌐 Llamando a ApiService.getDetallesBultos con ID:', escaneo.id);
       const detallesResponse = await ApiService.getDetallesBultos(escaneo.id);
       console.log('✅ Detalles cargados:', detallesResponse);
+      console.log('🔍 DEBUG - Primer grupo:', detallesResponse.bultos_agrupados?.[0]);
+      console.log('🔍 DEBUG - Volumen en grupo:', detallesResponse.bultos_agrupados?.[0]?.volumen);
 
       // Combinar datos del escaneo con los detalles de bultos agrupados
       const datosCompletos = {
@@ -1233,6 +1250,7 @@ const Dashboard = ({ onLogout }) => {
                       <TableCell>Peso Unit. (kg)</TableCell>
                       <TableCell>Volumen Total</TableCell>
                       <TableCell>Peso Total</TableCell>
+                      <TableCell>Imagen</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -1248,10 +1266,58 @@ const Dashboard = ({ onLogout }) => {
                           <TableCell>{formatDimensionCm(grupo.ancho)}</TableCell>
                           <TableCell>{formatDimensionCm(grupo.largo)}</TableCell>
                           <TableCell>{formatDimensionCm(grupo.alto)}</TableCell>
-                          <TableCell><Chip label={formatVolumeSmart(grupo.volumen)} size="small" color="secondary" variant="outlined" /></TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={formatVolumeSmart(
+                                grupo.volumen || grupo.volumen_unitario || 
+                                (grupo.ancho && grupo.largo && grupo.alto 
+                                  ? (grupo.ancho * grupo.largo * grupo.alto / 1_000_000) // mm → dm³
+                                  : 0)
+                              )} 
+                              size="small" 
+                              color="secondary" 
+                              variant="outlined" 
+                            />
+                          </TableCell>
                           <TableCell>{formatPesoKg(grupo.peso)}</TableCell>
-                          <TableCell><Chip label={formatVolumeSmart(grupo.volumen_total_grupo)} size="small" color="info" /></TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={formatVolumeSmart(
+                                grupo.volumen_total_grupo || grupo.volumen_total || 
+                                ((grupo.volumen || grupo.volumen_unitario || (grupo.ancho * grupo.largo * grupo.alto / 1_000_000)) * grupo.cantidad_grupos)
+                              )} 
+                              size="small" 
+                              color="info" 
+                            />
+                          </TableCell>
                           <TableCell><Chip label={formatPesoKg(grupo.peso_total_grupo)} size="small" color="warning" /></TableCell>
+                          <TableCell>
+                            {grupo.tiene_imagen_camara ? (
+                              <Tooltip title="Ver imagen del bulto">
+                                <IconButton 
+                                  size="small" 
+                                  onClick={() => {
+                                    setSelectedImage({
+                                      base64: grupo.imagen_camara,
+                                      filename: grupo.imagen_camara_filename || `bulto_${index + 1}.jpg`,
+                                      tipo: 'Imagen de Bulto',
+                                      serial: detalleBultosData.serial
+                                    });
+                                    setImageDialogOpen(true);
+                                  }}
+                                  sx={{ color: '#07c7c3' }}
+                                >
+                                  <CameraIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            ) : (
+                              <Tooltip title="Sin imagen">
+                                <IconButton size="small" disabled sx={{ color: '#ccc' }}>
+                                  <CameraIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                          </TableCell>
                         </TableRow>
                       ))
                     ) : (
