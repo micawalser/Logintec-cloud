@@ -571,7 +571,7 @@ const EscaneosTable = ({ escaneos, onViewImage, loadingImages }) => {
           <TableRow>
             <TableCell>Serial</TableCell><TableCell>Usuario</TableCell><TableCell>Máquina</TableCell><TableCell>Sitio</TableCell><TableCell>Fecha</TableCell>
             <TableCell>Ancho (cm)</TableCell><TableCell>Largo (cm)</TableCell><TableCell>Alto (cm)</TableCell>
-            <TableCell>Volumen (dm³)</TableCell><TableCell>Peso (kg)</TableCell><TableCell>Imágenes</TableCell><TableCell>Acciones</TableCell><TableCell>Detalle</TableCell>
+            <TableCell>Volumen (dm³)</TableCell><TableCell>Peso (kg)</TableCell><TableCell>Cantidad Bultos</TableCell><TableCell>Imágenes</TableCell><TableCell>Acciones</TableCell><TableCell>Detalle</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -599,6 +599,9 @@ const EscaneosTable = ({ escaneos, onViewImage, loadingImages }) => {
                 <TableCell>{formatDimensionCm(getSafeValue(escaneo, 'altura') || getSafeValue(escaneo, 'alto'))}</TableCell>
                 <TableCell><Chip label={formatVolumeSmart(calculateVolume(escaneo))} size="small" color="secondary" variant="outlined" /></TableCell>
                 <TableCell>{formatPesoKg(escaneo.peso)}</TableCell>
+                <TableCell sx={{ textAlign: 'center' }}>
+                  {escaneo.cantidad_bultos ? escaneo.cantidad_bultos : '-'}
+                </TableCell>
                 <TableCell>
                   <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
                     {hasImage(escaneo, '3d') && (
@@ -1015,7 +1018,7 @@ const Dashboard = ({ onLogout }) => {
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress /></Box>
       ) : (
         <TableContainer component={Paper} sx={{ mt: 2 }}>
-          <Table sx={{ minWidth: 1375 }}>
+          <Table sx={{ minWidth: 1485 }}>
             <TableHead>
               <TableRow>
                 <TableCell sx={{ fontSize: '0.95rem', minWidth: 110 }}>Serial</TableCell>
@@ -1028,6 +1031,7 @@ const Dashboard = ({ onLogout }) => {
                 <TableCell sx={{ fontSize: '0.95rem', minWidth: 85 }}>Alto (cm)</TableCell>
                 <TableCell sx={{ fontSize: '0.95rem', minWidth: 95 }}>Volumen (dm³)</TableCell>
                 <TableCell sx={{ fontSize: '0.95rem', minWidth: 85 }}>Peso (kg)</TableCell>
+                <TableCell sx={{ fontSize: '0.95rem', minWidth: 110 }}>Cantidad Bultos</TableCell>
                 <TableCell sx={{ fontSize: '0.95rem', minWidth: 120 }}>Imágenes</TableCell>
                 <TableCell sx={{ fontSize: '0.95rem', minWidth: 80 }}>Detalle</TableCell>
               </TableRow>
@@ -1050,6 +1054,9 @@ const Dashboard = ({ onLogout }) => {
                         <Chip label={formatVolumeSmart(escaneo.volumen)} size="small" color="secondary" variant="outlined" />
                       </TableCell>
                       <TableCell sx={{ fontSize: '0.92rem' }}>{formatPesoKg(escaneo.peso ?? escaneo.peso_kg ?? escaneo.machine_peso)}</TableCell>
+                      <TableCell sx={{ fontSize: '0.92rem', textAlign: 'center' }}>
+                        {escaneo.cantidad_bultos ? escaneo.cantidad_bultos : '-'}
+                      </TableCell>
                       <TableCell sx={{ fontSize: '0.92rem' }}>
                         <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
                           {/* Imagen 3D */}
