@@ -566,7 +566,7 @@ const EscaneosTable = ({ escaneos, onViewImage, loadingImages }) => {
 
   return (
     <TableContainer component={Paper} sx={{ mt: 2 }}>
-      <Table>
+      <Table sx={{ minWidth: 1485 }}>
         <TableHead>
           <TableRow>
             <TableCell>Serial</TableCell><TableCell>Usuario</TableCell><TableCell>Máquina</TableCell><TableCell>Sitio</TableCell><TableCell>Fecha</TableCell>
@@ -581,7 +581,13 @@ const EscaneosTable = ({ escaneos, onViewImage, loadingImages }) => {
 
             return (
               <TableRow key={escaneo.id} hover>
-                <TableCell><Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{getSafeValue(escaneo, 'serial')}</Typography></TableCell>
+                <TableCell sx={{ maxWidth: 150, overflow: 'hidden' }}>
+                  <Tooltip title={getSafeValue(escaneo, 'serial') || ''} arrow>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {getSafeValue(escaneo, 'serial')}
+                    </Typography>
+                  </Tooltip>
+                </TableCell>
                 <TableCell><Typography variant="body2" sx={{ color: '#5b3ea3', fontWeight: 500 }}>{getUsuarioValue(escaneo)}</Typography></TableCell>
                 <TableCell>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -1021,7 +1027,7 @@ const Dashboard = ({ onLogout }) => {
           <Table sx={{ minWidth: 1485 }}>
             <TableHead>
               <TableRow>
-                <TableCell sx={{ fontSize: '0.95rem', minWidth: 110 }}>Serial</TableCell>
+                <TableCell sx={{ fontSize: '0.95rem', minWidth: 110, maxWidth: 150 }}>Serial</TableCell>
                 <TableCell sx={{ fontSize: '0.95rem', minWidth: 90 }}>Usuario</TableCell>
                 <TableCell sx={{ fontSize: '0.95rem', minWidth: 140 }}>Máquina</TableCell>
                 <TableCell sx={{ fontSize: '0.95rem', minWidth: 140 }}>Sitio</TableCell>
@@ -1042,7 +1048,13 @@ const Dashboard = ({ onLogout }) => {
                 .map((escaneo) => {
                   return (
                     <TableRow key={escaneo.id} hover>
-                      <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.serial}</TableCell>
+                      <TableCell sx={{ fontSize: '0.92rem', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <Tooltip title={escaneo.serial || ''} arrow>
+                          <Typography variant="body2" sx={{ fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {escaneo.serial}
+                          </Typography>
+                        </Tooltip>
+                      </TableCell>
                       <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.usuario || escaneo.usuario_escaneo || escaneo.username || 'N/D'}</TableCell>
                       <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.maquina?.nombre || escaneo.maquina_modelo || 'N/D'}</TableCell>
                       <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.sitio?.nombre || escaneo.site_name || 'N/D'}</TableCell>
