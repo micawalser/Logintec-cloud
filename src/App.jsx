@@ -576,10 +576,7 @@ const EscaneosTable = ({ escaneos, onViewImage, loadingImages }) => {
         </TableHead>
         <TableBody>
           {escaneos.map((escaneo) => {
-            // ✅ Enriquecer escaneo con datos de máquina/sitio
-            const enrichedScan = MachinesSitesService.enrichScanWithMachineData(escaneo);
-
-            return (
+qu            return (
               <TableRow key={escaneo.id} hover>
                 <TableCell sx={{ maxWidth: 150, overflow: 'hidden' }}>
                   <Tooltip title={getSafeValue(escaneo, 'serial') || ''} arrow>
@@ -591,12 +588,12 @@ const EscaneosTable = ({ escaneos, onViewImage, loadingImages }) => {
                 <TableCell><Typography variant="body2" sx={{ color: '#5b3ea3', fontWeight: 500 }}>{getUsuarioValue(escaneo)}</Typography></TableCell>
                 <TableCell>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                    {enrichedScan.machine_name}
+                    {escaneo.machine_name || escaneo.maquina?.nombre || escaneo.maquina_modelo || 'N/D'}
                   </Typography>
                 </TableCell>
                 <TableCell>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                    {enrichedScan.site_name}
+                    {escaneo.site_name || escaneo.sitio?.nombre || escaneo.site_name || 'N/D'}
                   </Typography>
                 </TableCell>
                 <TableCell>{formatDate(escaneo.fecha)}</TableCell>
@@ -681,6 +678,7 @@ const Dashboard = ({ onLogout }) => {
   const [filtroMaquina, setFiltroMaquina] = useState('');
   const [sitiosUnicos, setSitiosUnicos] = useState([]);
   const [maquinasUnicas, setMaquinasUnicas] = useState([]);
+  const [filtrosCargados, setFiltrosCargados] = useState(false);
   const [detalleBultosModalOpen, setDetalleBultosModalOpen] = useState(false);
   const [detalleBultosData, setDetalleBultosData] = useState(null);
   const [detalleBultosLoading, setDetalleBultosLoading] = useState(false);
@@ -688,6 +686,7 @@ const Dashboard = ({ onLogout }) => {
 
   // Cargar todos los sitios y máquinas para los filtros
   const loadFilterOptions = useCallback(async () => {
+    if (filtrosCargados) return; // Evitar cargar múltiples veces
     try {
       console.log('🔄 Cargando opciones de filtros...');
       const [sitios, maquinas] = await Promise.all([
@@ -697,15 +696,11 @@ const Dashboard = ({ onLogout }) => {
       
       setSitiosUnicos(sitios.map(s => s.nombre).filter(Boolean));
       setMaquinasUnicas(maquinas.map(m => m.nombre).filter(Boolean));
-      
-      // console.log('✅ Filtros cargados:', {
-      //   sitios: sitios.length,
-      //   maquinas: maquinas.length
-      // });
+      setFiltrosCargados(true);
     } catch (error) {
       console.error('❌ Error cargando filtros:', error);
     }
-  }, []);
+  }, [filtrosCargados]);
 
   // Fetch escaneos con paginación real
   const fetchEscaneos = useCallback(async (pagina = 1) => {
@@ -715,17 +710,13 @@ const Dashboard = ({ onLogout }) => {
       const response = await api.fetchEscaneos(pagina);
       const { items, total, page, page_size } = response.data;
       
-      // ✅ MAPEAR cantidad_total_bultos → cantidad_bultos para compatibilidad
-      const itemsMapeados = (items || []).map(escaneo => ({
-        ...escaneo,
-        cantidad_bultos: escaneo.cantidad_total_bultos || escaneo.cantidad_bultos || 1
-      }));
-      
-      // 🔍 DEBUG: Verificar que el mapeo funcione
-      itemsMapeados.forEach(e => {
-        if (e.cantidad_bultos > 1) {
-          console.log(`✅ Escaneo ${e.serial}: cantidad_bultos = ${e.cantidad_bultos}`);
-        }
+      // ✅ MAPEAR cantidad_total_bultos → cantidad_bultos y pre-enriquecer datos
+      const itemsMapeados = (items || []).map(escaneo => {
+        const enriched = MachinesSitesService.enrichScanWithMachineData(escaneo);
+        return {
+          ...enriched,
+          cantidad_bultos: escaneo.cantidad_total_bultos || escaneo.cantidad_bultos || 1
+        };
       });
       
       setEscaneos(itemsMapeados);
@@ -741,9 +732,12 @@ const Dashboard = ({ onLogout }) => {
   useEffect(() => {
     if (currentTab === 1) {
       fetchEscaneos(1);
-      loadFilterOptions(); // Cargar opciones de filtros
+      // Cargar filtros solo una vez
+      if (!filtrosCargados) {
+        loadFilterOptions();
+      }
     }
-  }, [currentTab, fetchEscaneos, loadFilterOptions]);
+  }, [currentTab, fetchEscaneos, filtrosCargados, loadFilterOptions]);
 
   // Filtrar escaneos por SN, sitio y máquina
   useEffect(() => {
@@ -1056,8 +1050,8 @@ const Dashboard = ({ onLogout }) => {
                         </Tooltip>
                       </TableCell>
                       <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.usuario || escaneo.usuario_escaneo || escaneo.username || 'N/D'}</TableCell>
-                      <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.maquina?.nombre || escaneo.maquina_modelo || 'N/D'}</TableCell>
-                      <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.sitio?.nombre || escaneo.site_name || 'N/D'}</TableCell>
+                      <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.machine_name || escaneo.maquina?.nombre || escaneo.maquina_modelo || 'N/D'}</TableCell>
+                      <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.site_name || escaneo.sitio?.nombre || escaneo.site_name || 'N/D'}</TableCell>
                       <TableCell sx={{ fontSize: '0.85rem' }}>{formatDate(escaneo.fecha)}</TableCell>
                       <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.ancho}</TableCell>
                       <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.largo}</TableCell>
