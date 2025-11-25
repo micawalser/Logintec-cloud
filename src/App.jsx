@@ -576,7 +576,7 @@ const EscaneosTable = ({ escaneos, onViewImage, loadingImages }) => {
         </TableHead>
         <TableBody>
           {escaneos.map((escaneo) => {
-qu            return (
+            return (
               <TableRow key={escaneo.id} hover>
                 <TableCell sx={{ maxWidth: 150, overflow: 'hidden' }}>
                   <Tooltip title={getSafeValue(escaneo, 'serial') || ''} arrow>
