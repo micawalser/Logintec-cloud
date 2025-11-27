@@ -27,6 +27,8 @@ import {
 import MachinesSites from './pages/MachinesSites';
 import MachinesSitesService from './services/machinesSitesService';
 import UserProfile from './pages/UserProfile';
+import Exportacion from './pages/Exportacion';
+import Reportes from './pages/Reportes';
 import WorkingImageDiagnosticModal from './components/WorkingImageDiagnosticModal';
 
 // ========================================================================
@@ -1356,15 +1358,19 @@ const Dashboard = ({ onLogout }) => {
   );
 
   // RESTO DE TABS: En desarrollo
-  const renderOtherTabs = () => (
-    <>
-      {currentTab === 2 ? <UserProfile /> : <Typography sx={{p:3, textAlign: 'center'}}>Sección en desarrollo.</Typography>}
-    </>
-  );
+  const renderOtherTabs = () => {
+    if (currentTab === 2) return <UserProfile />;
+    if (currentTab === 3) return <Exportacion />;
+    if (currentTab === 4) return <Reportes />;
+    return <Typography sx={{p:3, textAlign: 'center'}}>Sección en desarrollo.</Typography>;
+  };
 
   const renderTabContent = () => {
     if (currentTab === 0) return <MachinesSites />;
     if (currentTab === 1) return renderEscaneosTab();
+    if (currentTab === 2) return <UserProfile />;
+    if (currentTab === 3) return <Exportacion />;
+    if (currentTab === 4) return <Reportes />;
     return renderOtherTabs();
   };
 
@@ -1419,6 +1425,8 @@ const Dashboard = ({ onLogout }) => {
             <Tab label="EQUIPOS" />
             <Tab label="ESCANEOS" />
             <Tab label="USUARIO" />
+            <Tab label="EXPORTACIÓN" />
+            <Tab label="REPORTES" />
           </Tabs>
         </Paper>
         <Box sx={{ mt: 7 }}>{renderTabContent()}        </Box>
