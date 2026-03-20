@@ -1,7 +1,5 @@
 import axios from 'axios';
-
-// La URL de tu backend. Para desarrollo, apunta al servidor local.
-const API_BASE_URL = 'https://logintec-1.onrender.com';
+import { API_BASE_URL } from './config/api';
 
 class ApiService {
 

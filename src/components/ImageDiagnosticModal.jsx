@@ -66,7 +66,7 @@ const ImageDiagnosticModal = ({ open, onClose, scanId, tipo, serial }) => {
 
       // Paso 2: Verificar conectividad básica
       try {
-        const response = await fetch('https://logintec-1.onrender.com/api/cloud/me', {
+        const response = await fetch('https://aghbackend.onrender.com/api/cloud/me', {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('authToken')}`
           },
@@ -99,7 +99,7 @@ const ImageDiagnosticModal = ({ open, onClose, scanId, tipo, serial }) => {
 
       // Paso 3: Probar la imagen específica
       try {
-        const response = await fetch(`https://logintec-1.onrender.com/api/cloud/escaneo/${scanId}/imagen?tipo=${tipo}`, {
+        const response = await fetch(`https://aghbackend.onrender.com/api/cloud/escaneo/${scanId}/imagen?tipo=${tipo}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('authToken')}`
           }

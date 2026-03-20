@@ -26,7 +26,7 @@ const SimpleImageDiagnosticModal = ({ open, onClose, scanId, tipo, serial }) => 
       }
 
       // Probar la imagen directamente
-      const response = await fetch(`https://logintec-1.onrender.com/api/cloud/escaneo/${scanId}/imagen?tipo=${tipo}`, {
+      const response = await fetch(`https://aghbackend.onrender.com/api/cloud/escaneo/${scanId}/imagen?tipo=${tipo}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

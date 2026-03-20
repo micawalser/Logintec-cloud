@@ -5,8 +5,8 @@
     "descripcion": "Cliente de prueba para LS1000"
   },
   "api": {
-    "base_url": "https://logintec-1.onrender.com",
-    "production_url": "https://logintec-1.onrender.com",
+    "base_url": "https://aghbackend.onrender.com",
+    "production_url": "https://aghbackend.onrender.com",
     "endpoints": {
       "scan": "/api/registro_escaneo",
       "health": "/api/health",

@@ -238,7 +238,7 @@ const DEMO_DATA = {
 // ========================================================================
 // API COMMUNICATION
 // ========================================================================
-const API_BASE_URL = 'https://logintec-1.onrender.com';
+import { API_BASE_URL } from './config/api';
 const pageSize = 100;
 
 // getAuthHeaders como función normal fuera de los componentes
@@ -265,7 +265,11 @@ const api = {
     const params = new URLSearchParams();
     params.append('username', usuario);
     params.append('password', password);
-    return axios.post(`${API_BASE_URL}/auth/token`, params);
+    return axios.post(`${API_BASE_URL}/auth/token`, params, {
+      headers: { 
+        'Content-Type': 'application/x-www-form-urlencoded' 
+      },
+    });
   },
   fetchCurrentUser: () => {
     if (isDemoMode()) {
@@ -712,11 +716,13 @@ const Dashboard = ({ onLogout }) => {
       const response = await api.fetchEscaneos(pagina);
       const { items, total, page, page_size } = response.data;
       
-      // ✅ MAPEAR cantidad_total_bultos → cantidad_bultos y pre-enriquecer datos
+      // ✅ MAPEAR campos y pre-enriquecer datos
       const itemsMapeados = (items || []).map(escaneo => {
         const enriched = MachinesSitesService.enrichScanWithMachineData(escaneo);
         return {
           ...enriched,
+          // La API nueva envía la fecha como timestamp_str, la normalizamos a fecha
+          fecha: escaneo.timestamp_str || escaneo.fecha,
           cantidad_bultos: escaneo.cantidad_total_bultos || escaneo.cantidad_bultos || 1
         };
       });
@@ -861,7 +867,7 @@ const Dashboard = ({ onLogout }) => {
         return;
       }
 
-      const response = await fetch(`https://logintec-1.onrender.com/api/cloud/escaneo/${scanId}/imagen?tipo=${tipo}`, {
+      const response = await fetch(`https://aghbackend.onrender.com/api/cloud/escaneo/${scanId}/imagen?tipo=${tipo}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -958,27 +964,13 @@ const Dashboard = ({ onLogout }) => {
   // TAB ESCANEOS
   const renderEscaneosTab = () => (
     <>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', mb: 2 }}>
         <Typography variant="h5">ESCANEOS</Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button 
-            variant="contained" 
-            startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <RefreshIcon />} 
-            onClick={() => fetchEscaneos(paginaActual)} 
-            disabled={loading} 
-            size="small"
-            sx={{ 
-              backgroundColor: '#5b3ea3',
-              '&:hover': { backgroundColor: '#3D2A73' }
-            }}
-          >
-            Actualizar
-          </Button>
-        </Box>
       </Box>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {/* Filtros */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+      <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center', justifyContent: 'space-between' }}>
+        <Box sx={{ display: 'flex', gap: 2 }}>
         <TextField
           select
           label="Filtrar por sitio"
@@ -1005,6 +997,26 @@ const Dashboard = ({ onLogout }) => {
             <MenuItem key={maquina} value={maquina}>{maquina}</MenuItem>
           ))}
         </TextField>
+        </Box>
+        <Button 
+          variant="contained" 
+          startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <RefreshIcon />} 
+          onClick={() => fetchEscaneos(paginaActual)} 
+          disabled={loading} 
+          sx={{ 
+            minWidth: 150,
+            px: 3,
+            py: 1.2,
+            fontSize: '0.9rem',
+            fontWeight: 600,
+            borderRadius: 999,
+            backgroundColor: '#5b3ea3',
+            whiteSpace: 'nowrap',
+            '&:hover': { backgroundColor: '#3D2A73' }
+          }}
+        >
+          Actualizar
+        </Button>
       </Box>
       {/* Búsqueda por SN */}
       <Paper sx={{ p: 2, mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -1419,14 +1431,20 @@ const Dashboard = ({ onLogout }) => {
           <Button color="inherit" onClick={onLogout} startIcon={<LogoutIcon />}>Salir</Button>
         </Toolbar>
       </AppBar>
-      <Container maxWidth="xl" sx={{ py: 4, px: 4 }}>
+      <Container maxWidth="xl" sx={{ py: 4, px: { xs: 1.5, sm: 3, md: 4 } }}>
         <Paper elevation={0} sx={{ mb: 3 }}>
-          <Tabs value={currentTab} onChange={(e, val) => setCurrentTab(val)} variant="fullWidth">
-            <Tab label="EQUIPOS" />
-            <Tab label="ESCANEOS" />
-            <Tab label="USUARIO" />
-            <Tab label="EXPORTACIÓN" />
-            <Tab label="REPORTES" />
+          <Tabs
+            value={currentTab}
+            onChange={(e, val) => setCurrentTab(val)}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+          >
+            <Tab label="EQUIPOS" sx={{ minWidth: { xs: 80, sm: 120 }, fontSize: { xs: '0.7rem', sm: '0.85rem' }, px: { xs: 1.5, sm: 2 } }} />
+            <Tab label="ESCANEOS" sx={{ minWidth: { xs: 90, sm: 130 }, fontSize: { xs: '0.7rem', sm: '0.85rem' }, px: { xs: 1.5, sm: 2 } }} />
+            <Tab label="USUARIO" sx={{ minWidth: { xs: 80, sm: 120 }, fontSize: { xs: '0.7rem', sm: '0.85rem' }, px: { xs: 1.5, sm: 2 } }} />
+            <Tab label="EXPORTACIÓN" sx={{ minWidth: { xs: 110, sm: 140 }, fontSize: { xs: '0.7rem', sm: '0.85rem' }, px: { xs: 1.5, sm: 2 } }} />
+            <Tab label="REPORTES" sx={{ minWidth: { xs: 90, sm: 130 }, fontSize: { xs: '0.7rem', sm: '0.85rem' }, px: { xs: 1.5, sm: 2 } }} />
           </Tabs>
         </Paper>
         <Box sx={{ mt: 7 }}>{renderTabContent()}        </Box>

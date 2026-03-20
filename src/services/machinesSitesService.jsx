@@ -4,8 +4,7 @@
 import axios from 'axios';
 import { formatDateArgentina } from '../utils/dateUtils';
 import ApiService from '../apiService';
-
-const API_BASE_URL = 'https://logintec-1.onrender.com';
+import { API_BASE_URL } from '../config/api';
 // El cliente_id se obtiene automáticamente del token JWT en el backend
 
 class MachinesSitesService {
@@ -38,7 +37,7 @@ class MachinesSitesService {
    */
   static async getLastMeasurement() {
     try {
-      const response = await fetch('https://logintec-1.onrender.com/api/cloud/escaneos', {
+      const response = await fetch('https://aghbackend.onrender.com/api/cloud/escaneos', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`
         }

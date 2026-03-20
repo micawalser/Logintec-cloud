@@ -21,7 +21,7 @@ export const checkAuthStatus = () => {
  */
 export const checkApiConnectivity = async () => {
   try {
-    const response = await fetch('https://logintec-1.onrender.com/health', {
+    const response = await fetch('https://aghbackend.onrender.com/health', {
       method: 'GET',
       timeout: 5000
     });
@@ -73,7 +73,7 @@ export const diagnoseImageProblem = async (scanId, tipo) => {
     // 3. Verificar token válido
     if (authStatus.isAuthenticated) {
       try {
-        const response = await fetch(`https://logintec-1.onrender.com/api/cloud/escaneo/${scanId}/imagen?tipo=${tipo}`, {
+        const response = await fetch(`https://aghbackend.onrender.com/api/cloud/escaneo/${scanId}/imagen?tipo=${tipo}`, {
           headers: {
             'Authorization': `Bearer ${authStatus.token}`
           }
@@ -134,7 +134,7 @@ export const checkImageExists = async (scanId, tipo) => {
     const token = localStorage.getItem('authToken');
     if (!token) return false;
 
-    const response = await fetch(`https://logintec-1.onrender.com/api/cloud/escaneo/${scanId}/imagen?tipo=${tipo}`, {
+    const response = await fetch(`https://aghbackend.onrender.com/api/cloud/escaneo/${scanId}/imagen?tipo=${tipo}`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
@@ -165,7 +165,7 @@ export const getImageInfo = async (scanId, tipo) => {
       throw new Error('No hay token de autenticación');
     }
 
-    const response = await fetch(`https://logintec-1.onrender.com/api/cloud/escaneo/${scanId}/imagen?tipo=${tipo}`, {
+    const response = await fetch(`https://aghbackend.onrender.com/api/cloud/escaneo/${scanId}/imagen?tipo=${tipo}`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }

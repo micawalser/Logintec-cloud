@@ -58,9 +58,15 @@ const MachinesSites = () => {
 
   if (loading) {
     return (
-      <Container maxWidth="xl" sx={{ py: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-          <CircularProgress sx={{ color: '#5b3ea3' }} size={60} />
+      <Container
+        maxWidth="xl"
+        sx={{
+          py: { xs: 3, md: 4 },
+          px: { xs: 1.5, sm: 2, md: 0 }
+        }}
+      >
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+          <CircularProgress sx={{ color: '#5b3ea3' }} size={48} />
         </Box>
       </Container>
     );
@@ -68,7 +74,13 @@ const MachinesSites = () => {
 
   if (machines.length === 0 && sites.length === 0) {
     return (
-      <Container maxWidth="xl" sx={{ py: 4 }}>
+      <Container
+        maxWidth="xl"
+        sx={{
+          py: { xs: 3, md: 4 },
+          px: { xs: 1.5, sm: 2, md: 0 }
+        }}
+      >
         <Alert severity="error">
           No se encontraron máquinas ni sitios registrados.
         </Alert>
@@ -77,24 +89,45 @@ const MachinesSites = () => {
   }
 
   return (
-    <Container maxWidth="xl" sx={{ py: 4 }}>
-      {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" sx={{ mb: 1, color: '#2C2C2C', fontWeight: 600 }}>
-          Información de Máquinas y Sitios
-        </Typography>
-      </Box>
-      <Grid container spacing={4}>
-        {/* Sitios */}
-        {sites.map((site, idx) => (
-          <Grid item xs={12} md={6} key={site.nombre + idx}>
+    <Container
+      maxWidth="xl"
+      sx={{
+        py: { xs: 3, md: 4 },
+        px: { xs: 1.5, sm: 2, md: 0 }
+      }}
+    >
+      <Box sx={{ maxWidth: 480, mx: 'auto' }}>
+        {/* Header */}
+        <Box sx={{ mb: { xs: 2.5, md: 4 } }}>
+          <Typography
+            variant="h4"
+            sx={{
+              mb: 1,
+              color: '#2C2C2C',
+              fontWeight: 600,
+              fontSize: { xs: '1.4rem', sm: '1.6rem', md: '2rem' }
+            }}
+          >
+            Información de Máquinas y Sitios
+          </Typography>
+        </Box>
+        <Grid container spacing={{ xs: 2, md: 4 }}>
+          {/* Sitios */}
+          {sites.map((site, idx) => (
+            <Grid item xs={12} md={6} key={site.nombre + idx}>
             <Card sx={{ 
               borderRadius: 3, 
               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
               borderLeft: '4px solid #07c7c3'
             }}>
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+              <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    mb: { xs: 2, sm: 3 }
+                  }}
+                >
                   <Box sx={{ 
                     p: 1.5, 
                     borderRadius: 2, 
@@ -105,10 +138,23 @@ const MachinesSites = () => {
                     {getSiteIcon(site.tipo)}
                   </Box>
                   <Box>
-                    <Typography variant="h6" sx={{ fontWeight: 600, color: '#2C2C2C' }}>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        fontWeight: 600,
+                        color: '#2C2C2C',
+                        fontSize: { xs: '1rem', sm: '1.1rem' }
+                      }}
+                    >
                       {site.nombre}
                     </Typography>
-                    <Typography variant="body2" sx={{ color: '#666666' }}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: '#666666',
+                        fontSize: { xs: '0.8rem', sm: '0.9rem' }
+                      }}
+                    >
                       Sitio de Trabajo
                     </Typography>
                   </Box>
@@ -164,18 +210,24 @@ const MachinesSites = () => {
                 </List>
               </CardContent>
             </Card>
-          </Grid>
-        ))}
-        {/* Máquinas */}
-        {machines.map((machine, idx) => (
-          <Grid item xs={12} md={6} key={machine.id + idx}>
+            </Grid>
+          ))}
+          {/* Máquinas */}
+          {machines.map((machine, idx) => (
+            <Grid item xs={12} md={6} key={machine.id + idx}>
             <Card sx={{ 
               borderRadius: 3, 
               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
               borderLeft: '4px solid #5b3ea3'
             }}>
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+              <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    mb: { xs: 2, sm: 3 }
+                  }}
+                >
                   <Box sx={{ 
                     p: 1.5, 
                     borderRadius: 2, 
@@ -186,10 +238,23 @@ const MachinesSites = () => {
                     <MemoryIcon />
                   </Box>
                   <Box>
-                    <Typography variant="h6" sx={{ fontWeight: 600, color: '#2C2C2C' }}>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        fontWeight: 600,
+                        color: '#2C2C2C',
+                        fontSize: { xs: '1rem', sm: '1.1rem' }
+                      }}
+                    >
                       {machine.nombre}
                     </Typography>
-                    <Typography variant="body2" sx={{ color: '#666666' }}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: '#666666',
+                        fontSize: { xs: '0.8rem', sm: '0.9rem' }
+                      }}
+                    >
                       Máquina de Escaneo
                     </Typography>
                   </Box>
@@ -253,9 +318,10 @@ const MachinesSites = () => {
                 </List>
               </CardContent>
             </Card>
-          </Grid>
-        ))}
-      </Grid>
+            </Grid>
+          ))}
+        </Grid>
+      </Box>
     </Container>
   );
 };
