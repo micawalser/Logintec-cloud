@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { API_BASE_URL } from './config/api';
+import { API_BASE_URL, BACKEND_PUBLIC_URL, DEFAULT_ESCANEOS_PAGE_SIZE } from './config/api';
 
 class ApiService {
 
@@ -16,7 +16,7 @@ class ApiService {
     params.append('username', email);
     params.append('password', password);
 
-    const response = await axios.post(`${API_BASE_URL}/auth/token`, params, {
+    const response = await axios.post(`${BACKEND_PUBLIC_URL}/auth/token`, params, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
     
@@ -121,7 +121,7 @@ class ApiService {
   /**
    * 🆕 Obtiene escaneos del cliente (usando endpoint real del backend)
    */
-  static async getEscaneosCliente(page = 1, pageSize = 100) {
+  static async getEscaneosCliente(page = 1, pageSize = DEFAULT_ESCANEOS_PAGE_SIZE) {
     const response = await axios.get(`${API_BASE_URL}/api/cloud/escaneos`, {
       headers: this.getAuthHeaders(),
       params: { page, page_size: pageSize }
@@ -152,7 +152,7 @@ class ApiService {
   /**
    * 🆕 Obtiene escaneos de un sitio específico
    */
-  static async getEscaneosPorSitio(idsitio, page = 1, pageSize = 100) {
+  static async getEscaneosPorSitio(idsitio, page = 1, pageSize = DEFAULT_ESCANEOS_PAGE_SIZE) {
     const response = await axios.get(
       `${API_BASE_URL}/api/cloud/sitios/${idsitio}/escaneos?page=${page}&page_size=${pageSize}`, 
       { headers: this.getAuthHeaders() }

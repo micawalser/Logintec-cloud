@@ -11,7 +11,7 @@ import {
 import MachinesSitesService from '../services/machinesSitesService';
 import ApiService from '../apiService';
 import axios from 'axios';
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL, DEFAULT_ESCANEOS_PAGE_SIZE } from '../config/api';
 
 const Exportacion = () => {
   const [formato, setFormato] = useState('excel');
@@ -65,7 +65,7 @@ const Exportacion = () => {
         }
 
         const response = await axios.get(
-          `${API_BASE_URL}/api/cloud/escaneos?page=${pagina}&page_size=100`,
+          `${API_BASE_URL}/api/cloud/escaneos?page=${pagina}&page_size=${DEFAULT_ESCANEOS_PAGE_SIZE}`,
           {
             headers: { 'Authorization': `Bearer ${token}` }
           }

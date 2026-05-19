@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import axios from 'axios';
 import ApiService from './apiService';
 import { formatDateArgentina } from './utils/dateUtils';
 import { checkAuthStatus, checkApiConnectivity, diagnoseImageProblem } from './utils/imageUtils';
 import {
-  Box, TextField, Button, Paper, Typography, AppBar, Toolbar,
-  Tabs, Tab, Container, Table, TableBody, TableCell, TableContainer,
+  Box, TextField, Button, Paper, Typography,
+  Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, ThemeProvider, createTheme, CircularProgress,
   Alert, Chip, Dialog, DialogContent, DialogTitle, IconButton, Tooltip, Fab, CssBaseline, MenuItem, Switch, FormControlLabel
 } from '@mui/material';
@@ -15,12 +15,18 @@ import {
   Camera as CameraIcon,
   Close as CloseIcon,
   Refresh as RefreshIcon,
-  Assessment as AssessmentIcon,
-  Logout as LogoutIcon,
   Search as SearchIcon,
   Clear as ClearIcon,
   Add as AddIcon,
-  Info as InfoIcon
+  Info as InfoIcon,
+  LightMode as LightModeIcon,
+  DarkMode as DarkModeIcon,
+  BarChart as StatsBarChartIcon,
+  TrendingUp as TrendingUpIcon,
+  Inventory2 as PackageIcon,
+  Scale as ScaleIcon,
+  Timeline as ActivityIcon,
+  CalendarMonth as CalendarIcon,
 } from '@mui/icons-material';
 
 // ✅ IMPORT MÁQUINAS Y SITIOS
@@ -30,46 +36,93 @@ import UserProfile from './pages/UserProfile';
 import Exportacion from './pages/Exportacion';
 import Reportes from './pages/Reportes';
 import WorkingImageDiagnosticModal from './components/WorkingImageDiagnosticModal';
+import { DashboardShell } from './components/DashboardShell';
 
 // ========================================================================
-// THEME CONFIGURATION
+// THEME (MUI) + modo día / noche (persiste en localStorage + data-theme en <html>)
 // ========================================================================
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#5b3ea3',
-      light: '#7B5BB8',
-      dark: '#3D2A73',
+const THEME_STORAGE_KEY = 'logintec_theme';
+
+function readStoredTheme() {
+  try {
+    return localStorage.getItem(THEME_STORAGE_KEY) === 'light' ? 'light' : 'dark';
+  } catch {
+    return 'dark';
+  }
+}
+
+function createAppTheme(mode) {
+  const isDark = mode === 'dark';
+  const textPrimary = isDark ? '#fafafa' : '#18181b';
+  const textSecondary = isDark ? '#a1a1aa' : '#52525b';
+  const paperBg = isDark ? '#111111' : '#ffffff';
+  const defaultBg = isDark ? '#0a0a0a' : '#f4f4f5';
+  const border = isDark ? '#262626' : '#e4e4e7';
+  const inputBg = isDark ? '#1a1a1a' : '#fafafa';
+  const tableHeadBg = isDark ? '#171717' : '#f4f4f5';
+
+  return createTheme({
+    palette: {
+      mode,
+      primary: { main: '#5b3ea3', light: '#7B5BB8', dark: '#3D2A73' },
+      secondary: { main: '#22c55e', light: '#4ade80', dark: '#15803d' },
+      background: { default: defaultBg, paper: paperBg },
+      text: { primary: textPrimary, secondary: textSecondary },
+      divider: border,
+      error: { main: isDark ? '#ef4444' : '#dc2626' },
     },
-    secondary: {
-      main: '#7CB342',
-      light: '#A4D96C',
-      dark: '#5A8F2E',
+    typography: {
+      fontFamily: '"Inter", system-ui, sans-serif',
+      h4: { fontWeight: 600, color: textPrimary },
+      h5: { fontWeight: 500, color: textPrimary },
+      h6: { fontWeight: 500, color: textPrimary },
     },
-    background: {
-      default: '#FAFAFA',
-      paper: '#FFFFFF',
+    shape: { borderRadius: 10 },
+    components: {
+      MuiPaper: {
+        styleOverrides: {
+          root: {
+            backgroundImage: 'none',
+            backgroundColor: paperBg,
+            border: `1px solid ${border}`,
+            boxShadow: 'none',
+          },
+        },
+      },
+      MuiButton: {
+        styleOverrides: {
+          contained: {
+            textTransform: 'none',
+            fontWeight: 600,
+            borderRadius: 8,
+            boxShadow: 'none',
+          },
+          outlined: { textTransform: 'none', fontWeight: 500, borderRadius: 8 },
+        },
+      },
+      MuiTableCell: {
+        styleOverrides: {
+          root: { borderColor: border, fontSize: '0.875rem' },
+          head: {
+            backgroundColor: tableHeadBg,
+            fontWeight: 600,
+            color: textPrimary,
+            borderColor: border,
+          },
+        },
+      },
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: { backgroundColor: inputBg },
+          notchedOutline: { borderColor: border },
+        },
+      },
+      MuiChip: {
+        styleOverrides: { root: { borderColor: isDark ? '#404040' : '#d4d4d8' } },
+      },
     },
-    text: {
-      primary: '#2C2C2C',
-      secondary: '#666666',
-    }
-  },
-  typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
-    h4: { fontWeight: 600, color: '#2C2C2C' },
-    h5: { fontWeight: 500, color: '#2C2C2C' },
-    h6: { fontWeight: 500, color: '#2C2C2C' }
-  },
-  components: {
-    MuiAppBar: { styleOverrides: { root: { background: 'linear-gradient(135deg, #5b3ea3 0%, #7B5BB8 100%)', boxShadow: '0 4px 20px rgba(91, 62, 163, 0.3)' } } },
-    MuiPaper: { styleOverrides: { root: { borderRadius: 12, boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)' } } },
-    MuiButton: { styleOverrides: { contained: { borderRadius: 8, textTransform: 'none', fontWeight: 500, boxShadow: '0 4px 12px rgba(91, 62, 163, 0.3)', '&:hover': { boxShadow: '0 6px 16px rgba(91, 62, 163, 0.4)' } }, outlined: { borderRadius: 8, textTransform: 'none', fontWeight: 500 } } },
-    MuiTableCell: { styleOverrides: { head: { backgroundColor: '#F5F5F5', fontWeight: 600, color: '#2C2C2C' } } },
-    MuiTabs: { styleOverrides: { root: { backgroundColor: '#FFFFFF', borderRadius: '12px 12px 0 0', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' }, indicator: { backgroundColor: '#5b3ea3', height: 3 } } },
-    MuiTab: { styleOverrides: { root: { textTransform: 'none', fontWeight: 500, fontSize: '0.95rem', color: '#666666', '&.Mui-selected': { color: '#5b3ea3', fontWeight: 600 } } } },
-  },
-});
+  });
+}
 
 // ========================================================================
 // DEMO MODE CONFIGURATION
@@ -238,8 +291,8 @@ const DEMO_DATA = {
 // ========================================================================
 // API COMMUNICATION
 // ========================================================================
-import { API_BASE_URL } from './config/api';
-const pageSize = 100;
+import { API_BASE_URL, BACKEND_PUBLIC_URL, DEFAULT_ESCANEOS_PAGE_SIZE } from './config/api';
+const pageSize = DEFAULT_ESCANEOS_PAGE_SIZE;
 
 // getAuthHeaders como función normal fuera de los componentes
 const getAuthHeaders = () => ({
@@ -250,6 +303,34 @@ const getAuthHeaders = () => ({
 const isDemoMode = () => {
   return localStorage.getItem(DEMO_MODE_KEY) === 'true';
 };
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Reintenta GET ante 502/503 (típico de Render frío o proxy). Respeta `signal` (p. ej. AbortController). */
+async function axiosGetWithColdStartRetry(url, config = {}, options = {}) {
+  const { maxAttempts = 6, baseDelayMs = 2000 } = options;
+  const mergedConfig = { timeout: 120000, ...config };
+  let lastError;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    mergedConfig.signal?.throwIfAborted?.();
+    try {
+      return await axios.get(url, mergedConfig);
+    } catch (err) {
+      lastError = err;
+      if (err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError') {
+        throw err;
+      }
+      const status = err?.response?.status;
+      const retryable = status === 502 || status === 503;
+      if (!retryable || attempt === maxAttempts - 1) {
+        throw err;
+      }
+      await sleep(baseDelayMs * (attempt + 1));
+      mergedConfig.signal?.throwIfAborted?.();
+    }
+  }
+  throw lastError;
+}
 
 const api = {
   login: (usuario, password) => {
@@ -265,7 +346,7 @@ const api = {
     const params = new URLSearchParams();
     params.append('username', usuario);
     params.append('password', password);
-    return axios.post(`${API_BASE_URL}/auth/token`, params, {
+    return axios.post(`${BACKEND_PUBLIC_URL}/auth/token`, params, {
       headers: { 
         'Content-Type': 'application/x-www-form-urlencoded' 
       },
@@ -277,7 +358,7 @@ const api = {
     }
     return axios.get(`${API_BASE_URL}/api/cloud/me`, { headers: getAuthHeaders() });
   },
-  fetchEscaneos: (page = 1) => {
+  fetchEscaneos: (page = 1, requestOptions = {}) => {
     if (isDemoMode()) {
       // Simular paginación con datos demo
       const startIndex = (page - 1) * pageSize;
@@ -293,7 +374,12 @@ const api = {
         }
       });
     }
-    return axios.get(`${API_BASE_URL}/api/cloud/escaneos?page=${page}&page_size=${pageSize}`, { headers: getAuthHeaders() });
+    const { signal } = requestOptions;
+    return axiosGetWithColdStartRetry(
+      `${API_BASE_URL}/api/cloud/escaneos?page=${page}&page_size=${pageSize}`,
+      { headers: getAuthHeaders(), ...(signal ? { signal } : {}) },
+      { maxAttempts: 6, baseDelayMs: 2000 },
+    );
   },
   fetchStats: () => {
     if (isDemoMode()) {
@@ -410,17 +496,120 @@ const formatVolumeSmart = (volumen) => {
   return `${valor} dm³`;
 };
 
+const DEMO_CHART_DATA = [
+  { day: 'Lun', scans: 18, volume: 342 },
+  { day: 'Mar', scans: 24, volume: 456 },
+  { day: 'Mié', scans: 15, volume: 287 },
+  { day: 'Jue', scans: 31, volume: 589 },
+  { day: 'Vie', scans: 28, volume: 521 },
+  { day: 'Sáb', scans: 12, volume: 228 },
+  { day: 'Dom', scans: 8, volume: 156 },
+];
+
+const DEMO_TOP_USERS = [
+  { name: 'Juan Pérez', scans: 45, volume: 867.3 },
+  { name: 'María García', scans: 38, volume: 712.8 },
+  { name: 'Carlos López', scans: 32, volume: 598.2 },
+  { name: 'Ana Martínez', scans: 28, volume: 521.4 },
+  { name: 'Roberto Silva', scans: 13, volume: 147.8 },
+];
+
+const numberOrZero = (value) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+};
+
+const formatStatNumber = (value, decimals = 0) => {
+  const number = numberOrZero(value);
+  return number.toLocaleString('es-AR', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+};
+
+function StatCard({ icon: Icon, label, value, unit, trend, trendUp = true }) {
+  return (
+    <Paper
+      sx={{
+        p: 2,
+        borderRadius: 3,
+        bgcolor: 'var(--card)',
+        minHeight: 125,
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+        <Box
+          sx={{
+            width: 38,
+            height: 38,
+            borderRadius: 2,
+            bgcolor: 'rgba(91, 62, 163, 0.14)',
+            color: 'var(--primary)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Icon sx={{ fontSize: 22 }} />
+        </Box>
+        {trend && (
+          <Typography sx={{ color: trendUp ? '#22c55e' : '#ef4444', fontSize: '0.75rem', fontWeight: 700 }}>
+            {trend}
+          </Typography>
+        )}
+      </Box>
+      <Typography sx={{ fontSize: '1.55rem', lineHeight: 1.1, fontWeight: 700, color: 'var(--foreground)' }}>
+        {value}
+        {unit && (
+          <Typography component="span" sx={{ ml: 0.5, fontSize: '0.8rem', fontWeight: 500, color: 'var(--muted-foreground)' }}>
+            {unit}
+          </Typography>
+        )}
+      </Typography>
+      <Typography sx={{ mt: 0.75, fontSize: '0.86rem', color: 'var(--muted-foreground)' }}>{label}</Typography>
+    </Paper>
+  );
+}
+
+function ProgressMetric({ label, value, color }) {
+  const colors = {
+    primary: 'var(--primary)',
+    emerald: '#10b981',
+    amber: '#f59e0b',
+    blue: '#3b82f6',
+  };
+
+  return (
+    <Box>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+        <Typography sx={{ fontSize: '0.9rem', color: 'var(--muted-foreground)' }}>{label}</Typography>
+        <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--foreground)' }}>{value}%</Typography>
+      </Box>
+      <Box sx={{ height: 8, bgcolor: 'var(--muted)', borderRadius: 999, overflow: 'hidden' }}>
+        <Box
+          sx={{
+            height: '100%',
+            width: `${value}%`,
+            bgcolor: colors[color],
+            borderRadius: 999,
+            transition: 'width 220ms ease',
+          }}
+        />
+      </Box>
+    </Box>
+  );
+}
+
 // ========================================================================
 // COMPONENT: LoginForm
 // ========================================================================
-const LoginForm = ({ onLogin }) => {
+const LoginForm = ({ onLogin, colorMode, onToggleColorMode }) => {
   const [usuario, setUsuario] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [demoMode, setDemoMode] = useState(localStorage.getItem(DEMO_MODE_KEY) === 'true');
 
-  // Efecto para llenar campos automáticamente en modo demo
   useEffect(() => {
     if (demoMode) {
       setUsuario('demo@logintec.com');
@@ -445,13 +634,10 @@ const LoginForm = ({ onLogin }) => {
     const isDemo = event.target.checked;
     setDemoMode(isDemo);
     localStorage.setItem(DEMO_MODE_KEY, isDemo.toString());
-    
     if (isDemo) {
-      // En modo demo, llenar automáticamente los campos
       setUsuario('demo@logintec.com');
       setPassword('demo123');
     } else {
-      // Limpiar campos al salir del modo demo
       setUsuario('');
       setPassword('');
     }
@@ -461,66 +647,129 @@ const LoginForm = ({ onLogin }) => {
     <Box
       component="form"
       onSubmit={handleSubmit}
-      sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: 'linear-gradient(135deg, #FAFAFA 0%, #F0F0F0 100%)' }}
+      sx={{
+        position: 'relative',
+        display: 'flex',
+        minHeight: '100vh',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(145deg, var(--background) 0%, var(--muted) 45%, var(--background) 100%)',
+        px: 2,
+        py: 5,
+      }}
     >
-      <Paper elevation={8} sx={{ padding: 5, width: 400, borderRadius: 3 }}>
+      <Tooltip title={colorMode === 'dark' ? 'Modo día' : 'Modo noche'} placement="left">
+        <IconButton
+          type="button"
+          onClick={onToggleColorMode}
+          aria-label={colorMode === 'dark' ? 'Activar modo día' : 'Activar modo noche'}
+          sx={{
+            position: 'absolute',
+            top: { xs: 12, sm: 20 },
+            right: { xs: 12, sm: 20 },
+            zIndex: 2,
+            border: '1px solid var(--border)',
+            bgcolor: 'var(--card)',
+            color: 'var(--foreground)',
+            '&:hover': { bgcolor: 'var(--muted)' },
+          }}
+        >
+          {colorMode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+        </IconButton>
+      </Tooltip>
+      <Paper
+        elevation={0}
+        sx={{
+          width: '100%',
+          maxWidth: 420,
+          p: 4,
+          borderRadius: 3,
+          border: '1px solid var(--border)',
+          bgcolor: 'var(--card)',
+          boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+        }}
+      >
         <Box sx={{ textAlign: 'center', mb: 4 }}>
-          <img src="/logocloud.png" alt="Logintec" style={{ width: '220px', height: 'auto', marginBottom: '16px' }} onError={(e) => { e.target.style.display = 'none'; }} />
-          <Typography variant="body2" color="text.secondary">Sistema de Gestión de Escaneos</Typography>
+          <Box
+            component="img"
+            src="/logocloud.png"
+            alt="Logintec"
+            sx={{ width: 220, height: 'auto', mb: 2, mx: 'auto', display: 'block' }}
+            onError={(e) => {
+              e.target.style.display = 'none';
+            }}
+          />
+          <Typography variant="body2" sx={{ color: 'var(--muted-foreground)' }}>
+            Sistema de gestión de escaneos
+          </Typography>
         </Box>
-        
-        {/* Toggle Modo Demo */}
-        <Box sx={{ mb: 3, p: 2, backgroundColor: demoMode ? '#e3f2fd' : '#f5f5f5', borderRadius: 2, border: `2px solid ${demoMode ? '#5b3ea3' : '#ddd'}` }}>
+
+        <Box
+          sx={{
+            mb: 3,
+            p: 2,
+            borderRadius: 2,
+            border: '2px solid',
+            borderColor: demoMode ? 'rgba(91, 62, 163, 0.5)' : 'var(--border)',
+            bgcolor: demoMode ? 'rgba(91, 62, 163, 0.08)' : 'var(--muted)',
+          }}
+        >
           <FormControlLabel
-            control={
-              <Switch
-                checked={demoMode}
-                onChange={handleDemoModeToggle}
-                color="primary"
-              />
-            }
+            control={<Switch checked={demoMode} onChange={handleDemoModeToggle} color="primary" />}
             label={
               <Box>
-                <Typography variant="body2" sx={{ fontWeight: 600, color: demoMode ? '#5b3ea3' : '#666' }}>
-                  Modo Demo
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  Modo demo
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" sx={{ color: 'var(--muted-foreground)' }}>
                   {demoMode ? 'Usando datos de demostración' : 'Conectar a base de datos real'}
                 </Typography>
               </Box>
             }
           />
           {demoMode && (
-            <Alert severity="info" sx={{ mt: 1, fontSize: '0.75rem' }}>
-              <Typography variant="caption">
-                <strong>Modo Demo:</strong> Usa cualquier email y contraseña para ingresar. Los datos son de demostración.
-              </Typography>
+            <Alert severity="info" sx={{ mt: 1, fontSize: '0.75rem', bgcolor: 'rgba(91, 62, 163, 0.12)' }}>
+              <strong>Modo demo:</strong> usa cualquier email y contraseña para ingresar.
             </Alert>
           )}
         </Box>
 
-        <TextField 
-          fullWidth 
-          label="Email de Usuario" 
-          value={usuario} 
-          onChange={(e) => setUsuario(e.target.value)} 
-          margin="normal" 
-          variant="outlined"
+        <TextField
+          fullWidth
+          label="Email"
+          type="email"
+          autoComplete="username"
+          value={usuario}
+          onChange={(e) => setUsuario(e.target.value)}
+          margin="normal"
           disabled={demoMode}
         />
-        <TextField 
-          fullWidth 
-          label="Contraseña" 
-          type="password" 
-          value={password} 
-          onChange={(e) => setPassword(e.target.value)} 
-          margin="normal" 
-          variant="outlined"
+        <TextField
+          fullWidth
+          label="Contraseña"
+          type="password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          margin="normal"
           disabled={demoMode}
         />
-        {error && <Alert severity="error" sx={{ mt: 2, textAlign: 'left' }}>{error}</Alert>}
-        <Button type="submit" fullWidth variant="contained" size="large" disabled={loading} sx={{ mt: 3, py: 1.5 }}>
-          {loading ? <CircularProgress size={24} color="inherit" /> : (demoMode ? 'Ingresar (Demo)' : 'Ingresar')}
+
+        {error && (
+          <Alert severity="error" sx={{ mt: 2 }}>
+            {error}
+          </Alert>
+        )}
+
+        <Button
+          type="submit"
+          fullWidth
+          size="large"
+          variant="contained"
+          disabled={loading}
+          sx={{ mt: 3, py: 1.5, fontWeight: 600, bgcolor: 'var(--primary)', '&:hover': { bgcolor: 'var(--primary-dark)' } }}
+        >
+          {loading ? <CircularProgress size={24} color="inherit" /> : demoMode ? 'Ingresar (demo)' : 'Ingresar'}
         </Button>
       </Paper>
     </Box>
@@ -666,10 +915,13 @@ const EscaneosTable = ({ escaneos, onViewImage, loadingImages }) => {
 // ========================================================================
 // COMPONENT: Dashboard
 // ========================================================================
-const Dashboard = ({ onLogout }) => {
+const Dashboard = ({ onLogout, colorMode, onToggleColorMode }) => {
   const [currentTab, setCurrentTab] = useState(1);
   const [escaneos, setEscaneos] = useState([]);
   const [escaneosFiltrados, setEscaneosFiltrados] = useState([]);
+  const [estadisticas, setEstadisticas] = useState({});
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedImage, setSelectedImage] = useState(null);
@@ -680,40 +932,62 @@ const Dashboard = ({ onLogout }) => {
   const [searchSN, setSearchSN] = useState('');
   const [paginaActual, setPaginaActual] = useState(1);
   const [totalPaginas, setTotalPaginas] = useState(1);
+  const [totalEscaneos, setTotalEscaneos] = useState(0);
   const [filtroSitio, setFiltroSitio] = useState('');
   const [filtroMaquina, setFiltroMaquina] = useState('');
   const [sitiosUnicos, setSitiosUnicos] = useState([]);
   const [maquinasUnicas, setMaquinasUnicas] = useState([]);
   const [filtrosCargados, setFiltrosCargados] = useState(false);
+  const filtrosCargadosRef = useRef(false);
+  const filtrosCargaEnCursoRef = useRef(false);
+  /** Si un GET escaneos se cancela (Strict Mode), no bajar `loading` si ya arrancó otro fetch. */
+  const escaneosFetchGenRef = useRef(0);
   const [detalleBultosModalOpen, setDetalleBultosModalOpen] = useState(false);
   const [detalleBultosData, setDetalleBultosData] = useState(null);
   const [detalleBultosLoading, setDetalleBultosLoading] = useState(false);
   const [detalleBultosError, setDetalleBultosError] = useState(null);
-
-  // Cargar todos los sitios y máquinas para los filtros
-  const loadFilterOptions = useCallback(async () => {
-    if (filtrosCargados) return; // Evitar cargar múltiples veces
+  const [user, setUser] = useState(() => {
     try {
-      console.log('🔄 Cargando opciones de filtros...');
-      const [sitios, maquinas] = await Promise.all([
-        MachinesSitesService.getAllSites(),
-        MachinesSitesService.getAllMachines()
-      ]);
-      
-      setSitiosUnicos(sitios.map(s => s.nombre).filter(Boolean));
-      setMaquinasUnicas(maquinas.map(m => m.nombre).filter(Boolean));
-      setFiltrosCargados(true);
-    } catch (error) {
-      console.error('❌ Error cargando filtros:', error);
+      return JSON.parse(localStorage.getItem('userData') || 'null');
+    } catch {
+      return null;
     }
+  });
+
+  useEffect(() => {
+    filtrosCargadosRef.current = filtrosCargados;
   }, [filtrosCargados]);
 
-  // Fetch escaneos con paginación real
-  const fetchEscaneos = useCallback(async (pagina = 1) => {
+  /** Refs evitan recrear el callback cuando cambia filtrosCargados (eso re-disparaba el efecto del tab y pedía escaneos dos veces). */
+  const loadFilterOptions = useCallback(async () => {
+    if (filtrosCargadosRef.current || filtrosCargaEnCursoRef.current) return;
+    filtrosCargaEnCursoRef.current = true;
+    try {
+      const [sitios, maquinas] = await Promise.all([
+        MachinesSitesService.getAllSites(),
+        MachinesSitesService.getAllMachines(),
+      ]);
+      setSitiosUnicos(sitios.map((s) => s.nombre).filter(Boolean));
+      setMaquinasUnicas(maquinas.map((m) => m.nombre).filter(Boolean));
+      setFiltrosCargados(true);
+      filtrosCargadosRef.current = true;
+    } catch (error) {
+      console.error('Error cargando filtros:', error);
+      setFiltrosCargados(true);
+      filtrosCargadosRef.current = true;
+    } finally {
+      filtrosCargaEnCursoRef.current = false;
+    }
+  }, []);
+
+  // Fetch escaneos con paginación real (`requestOptions.signal` para AbortController / Strict Mode)
+  const fetchEscaneos = useCallback(async (pagina = 1, requestOptions = {}) => {
+    const { signal } = requestOptions;
+    const gen = ++escaneosFetchGenRef.current;
     setLoading(true);
     setError('');
     try {
-      const response = await api.fetchEscaneos(pagina);
+      const response = await api.fetchEscaneos(pagina, { signal });
       const { items, total, page, page_size } = response.data;
       
       // ✅ MAPEAR campos y pre-enriquecer datos
@@ -729,23 +1003,91 @@ const Dashboard = ({ onLogout }) => {
       
       setEscaneos(itemsMapeados);
       setPaginaActual(page || 1);
+      setTotalEscaneos(total || 0);
       setTotalPaginas(Math.ceil((total || 0) / (page_size || pageSize)));
-    } catch {
-      setError('No se pudo cargar la lista de escaneos.');
+    } catch (err) {
+      if (err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError') {
+        return;
+      }
+      const status = err?.response?.status;
+      const code = err?.code;
+      if (status === 502 || status === 503 || code === 'ERR_NETWORK') {
+        setError(
+          'No se pudo conectar con el servidor (no disponible o error de red). En desarrollo usa `npm run dev` con el proxy de Vite; si el backend está en Render, puede estar frío o saturado: reintenta en unos segundos.',
+        );
+      } else {
+        setError('No se pudo cargar la lista de escaneos.');
+      }
     } finally {
-      setLoading(false);
+      if (escaneosFetchGenRef.current === gen) {
+        setLoading(false);
+      }
     }
   }, []);
 
-  useEffect(() => {
-    if (currentTab === 1) {
-      fetchEscaneos(1);
-      // Cargar filtros solo una vez
-      if (!filtrosCargados) {
-        loadFilterOptions();
-      }
+  const fetchEstadisticas = useCallback(async () => {
+    setStatsLoading(true);
+    setStatsError('');
+    try {
+      const response = await api.fetchStats();
+      setEstadisticas(response.data || DEMO_DATA.estadisticas);
+    } catch (err) {
+      console.error('Error cargando estadísticas:', err);
+      setStatsError('No se pudieron cargar las estadísticas.');
+    } finally {
+      setStatsLoading(false);
     }
-  }, [currentTab, fetchEscaneos, filtrosCargados, loadFilterOptions]);
+  }, []);
+
+  /**
+   * Tab Escaneos: primero lista (backend ya enriquece sitio/máquina por fila).
+   * Filtros después, en segundo plano, para no competir en red/RAM con la petición de escaneos
+   * ni re-disparar escaneos al cambiar la identidad del callback de filtros.
+   */
+  useEffect(() => {
+    if (currentTab !== 1) return;
+    const ac = new AbortController();
+    (async () => {
+      try {
+        await fetchEscaneos(1, { signal: ac.signal });
+      } finally {
+        if (!ac.signal.aborted) {
+          loadFilterOptions();
+        }
+      }
+    })();
+    return () => {
+      ac.abort();
+    };
+  }, [currentTab, fetchEscaneos, loadFilterOptions]);
+
+  useEffect(() => {
+    if (currentTab !== 5) return;
+    fetchEstadisticas();
+  }, [currentTab, fetchEstadisticas]);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .fetchCurrentUser()
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        setUser(data);
+        localStorage.setItem('userData', JSON.stringify(data));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        try {
+          const parsed = JSON.parse(localStorage.getItem('userData') || 'null');
+          if (parsed) setUser(parsed);
+        } catch {
+          /* ignore */
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Filtrar escaneos por SN, sitio y máquina
   useEffect(() => {
@@ -768,6 +1110,63 @@ const Dashboard = ({ onLogout }) => {
     }
     setEscaneosFiltrados(filtrados);
   }, [escaneos, searchSN, filtroSitio, filtroMaquina]);
+
+  const escaneosVisiblesParaTabla = useMemo(() => {
+    const list = filtrarDuplicadosPorSerial(escaneosFiltrados);
+    return [...list].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+  }, [escaneosFiltrados]);
+
+  const cantidadRegistrosEscaneos = totalEscaneos || escaneosVisiblesParaTabla.length;
+
+  const chartDataEstadisticas = useMemo(() => {
+    if (!escaneos.length) return DEMO_CHART_DATA;
+
+    const dayLabels = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    const today = new Date();
+    const days = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(today);
+      date.setDate(today.getDate() - (6 - index));
+      return {
+        key: date.toISOString().slice(0, 10),
+        day: dayLabels[date.getDay()],
+        scans: 0,
+        volume: 0,
+      };
+    });
+
+    const byDate = new Map(days.map((day) => [day.key, day]));
+    escaneos.forEach((escaneo) => {
+      if (!escaneo.fecha) return;
+      const scanDate = new Date(escaneo.fecha);
+      if (Number.isNaN(scanDate.getTime())) return;
+      const key = scanDate.toISOString().slice(0, 10);
+      const target = byDate.get(key);
+      if (!target) return;
+      target.scans += 1;
+      target.volume += numberOrZero(escaneo.volumen);
+    });
+
+    return days.map(({ day, scans, volume }) => ({ day, scans, volume }));
+  }, [escaneos]);
+
+  const topUsuariosEstadisticas = useMemo(() => {
+    if (!escaneos.length) return DEMO_TOP_USERS;
+
+    const usersMap = new Map();
+    escaneos.forEach((escaneo) => {
+      const name = escaneo.usuario || escaneo.usuario_escaneo || escaneo.username || 'Sin usuario';
+      const current = usersMap.get(name) || { name, scans: 0, volume: 0 };
+      current.scans += 1;
+      current.volume += numberOrZero(escaneo.volumen);
+      usersMap.set(name, current);
+    });
+
+    const users = Array.from(usersMap.values())
+      .sort((a, b) => b.scans - a.scans || b.volume - a.volume)
+      .slice(0, 5);
+
+    return users.length ? users : DEMO_TOP_USERS;
+  }, [escaneos]);
 
   // Función mejorada para manejar la carga de imágenes
   const handleViewImage = async (scanId, tipo, forceCheck = false) => {
@@ -867,7 +1266,7 @@ const Dashboard = ({ onLogout }) => {
         return;
       }
 
-      const response = await fetch(`https://aghbackend.onrender.com/api/cloud/escaneo/${scanId}/imagen?tipo=${tipo}`, {
+      const response = await fetch(`${API_BASE_URL}/api/cloud/escaneo/${scanId}/imagen?tipo=${tipo}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -961,6 +1360,158 @@ const Dashboard = ({ onLogout }) => {
     }
   };
 
+  const renderEstadisticasTab = () => {
+    const stats = estadisticas || {};
+    const total = numberOrZero(stats.total_escaneos ?? totalEscaneos);
+    const imagenes3d = escaneos.length
+      ? Math.round((escaneos.filter((escaneo) => escaneo.tiene_imagen_3d).length / escaneos.length) * 100)
+      : 92;
+    const fotosCamara = escaneos.length
+      ? Math.round((escaneos.filter((escaneo) => escaneo.tiene_imagen_camara).length / escaneos.length) * 100)
+      : 65;
+    const utilizacion = total > 0 ? Math.min(100, Math.max(1, Math.round((numberOrZero(stats.escaneos_mes) / total) * 100))) : 78;
+    const tasaExito = escaneos.length ? 100 : 96;
+    const maxScans = Math.max(1, ...chartDataEstadisticas.map((data) => data.scans));
+
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {statsError && <Alert severity="warning">{statsError}</Alert>}
+
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: 'repeat(2, minmax(0, 1fr))',
+              md: 'repeat(3, minmax(0, 1fr))',
+              xl: 'repeat(6, minmax(0, 1fr))',
+            },
+            gap: 2,
+          }}
+        >
+          <StatCard icon={StatsBarChartIcon} label="Total Escaneos" value={formatStatNumber(stats.total_escaneos ?? totalEscaneos)} trend="+12%" />
+          <StatCard icon={ActivityIcon} label="Hoy" value={formatStatNumber(stats.escaneos_hoy)} trend="+3" />
+          <StatCard icon={CalendarIcon} label="Esta Semana" value={formatStatNumber(stats.escaneos_semana)} trend="+8%" />
+          <StatCard icon={CalendarIcon} label="Este Mes" value={formatStatNumber(stats.escaneos_mes)} trend="+15%" />
+          <StatCard icon={PackageIcon} label="Volumen Total" value={formatStatNumber(stats.volumen_total, 1)} unit="dm³" />
+          <StatCard icon={ScaleIcon} label="Peso Total" value={formatStatNumber(stats.peso_total, 1)} unit="kg" />
+        </Box>
+
+        {statsLoading && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, color: 'var(--muted-foreground)' }}>
+            <CircularProgress size={18} />
+            <Typography variant="body2">Actualizando estadísticas...</Typography>
+          </Box>
+        )}
+
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' },
+            gap: 3,
+          }}
+        >
+          <Paper sx={{ p: 3, borderRadius: 3, bgcolor: 'var(--card)' }}>
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', mb: 4 }}>
+              <Box>
+                <Typography sx={{ fontSize: '1.05rem', fontWeight: 700 }}>Escaneos por Día</Typography>
+                <Typography sx={{ fontSize: '0.85rem', color: 'var(--muted-foreground)' }}>Últimos 7 días</Typography>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, color: '#10b981' }}>
+                <TrendingUpIcon sx={{ fontSize: 18 }} />
+                <Typography sx={{ fontSize: '0.85rem', fontWeight: 700 }}>+12.5%</Typography>
+              </Box>
+            </Box>
+
+            <Box sx={{ height: 190, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 1.25 }}>
+              {chartDataEstadisticas.map((data) => (
+                <Box key={data.day} sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                  <Typography sx={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>{data.scans}</Typography>
+                  <Box
+                    sx={{
+                      width: '100%',
+                      height: `${Math.max(8, (data.scans / maxScans) * 140)}px`,
+                      bgcolor: 'rgba(91, 62, 163, 0.82)',
+                      borderRadius: '7px 7px 0 0',
+                      transition: 'height 220ms ease, background-color 220ms ease',
+                      '&:hover': { bgcolor: 'var(--primary)' },
+                    }}
+                  />
+                  <Typography sx={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>{data.day}</Typography>
+                </Box>
+              ))}
+            </Box>
+          </Paper>
+
+          <Paper sx={{ p: 3, borderRadius: 3, bgcolor: 'var(--card)' }}>
+            <Box sx={{ mb: 4 }}>
+              <Typography sx={{ fontSize: '1.05rem', fontWeight: 700 }}>Resumen de Actividad</Typography>
+              <Typography sx={{ fontSize: '0.85rem', color: 'var(--muted-foreground)' }}>Métricas principales</Typography>
+            </Box>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+              <ProgressMetric label="Utilización de escáneres" value={utilizacion} color="primary" />
+              <ProgressMetric label="Imágenes 3D capturadas" value={imagenes3d} color="emerald" />
+              <ProgressMetric label="Fotos de cámara" value={fotosCamara} color="amber" />
+              <ProgressMetric label="Tasa de éxito" value={tasaExito} color="blue" />
+            </Box>
+          </Paper>
+        </Box>
+
+        <Paper sx={{ p: 3, borderRadius: 3, bgcolor: 'var(--card)' }}>
+          <Box sx={{ mb: 3 }}>
+            <Typography sx={{ fontSize: '1.05rem', fontWeight: 700 }}>Top Usuarios</Typography>
+            <Typography sx={{ fontSize: '0.85rem', color: 'var(--muted-foreground)' }}>Mayor cantidad de escaneos este mes</Typography>
+          </Box>
+
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+            {topUsuariosEstadisticas.map((usuario, index) => (
+              <Box
+                key={usuario.name}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                  p: 1.5,
+                  borderRadius: 2,
+                  bgcolor: 'rgba(255, 255, 255, 0.03)',
+                  transition: 'background-color 160ms ease',
+                  '&:hover': { bgcolor: 'rgba(91, 62, 163, 0.11)' },
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: '50%',
+                    bgcolor: 'rgba(91, 62, 163, 0.14)',
+                    border: '1px solid rgba(91, 62, 163, 0.25)',
+                    color: 'var(--primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                  }}
+                >
+                  {index + 1}
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {usuario.name}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.78rem', color: 'var(--muted-foreground)' }}>{usuario.scans} escaneos</Typography>
+                </Box>
+                <Box sx={{ textAlign: 'right' }}>
+                  <Typography sx={{ fontFamily: 'monospace', fontSize: '0.9rem', fontWeight: 700 }}>{formatStatNumber(usuario.volume, 1)}</Typography>
+                  <Typography sx={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>dm³</Typography>
+                </Box>
+              </Box>
+            ))}
+          </Box>
+        </Paper>
+      </Box>
+    );
+  };
+
   // TAB ESCANEOS
   const renderEscaneosTab = () => (
     <>
@@ -997,6 +1548,12 @@ const Dashboard = ({ onLogout }) => {
             <MenuItem key={maquina} value={maquina}>{maquina}</MenuItem>
           ))}
         </TextField>
+        <Chip
+          label={`${cantidadRegistrosEscaneos} ${cantidadRegistrosEscaneos === 1 ? 'registro' : 'registros'}`}
+          size="small"
+          variant="outlined"
+          sx={{ alignSelf: 'center', fontWeight: 600 }}
+        />
         </Box>
         <Button 
           variant="contained" 
@@ -1051,9 +1608,7 @@ const Dashboard = ({ onLogout }) => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filtrarDuplicadosPorSerial(escaneosFiltrados)
-                .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
-                .map((escaneo) => {
+              {escaneosVisiblesParaTabla.map((escaneo) => {
                   return (
                     <TableRow key={escaneo.id} hover>
                       <TableCell sx={{ fontSize: '0.92rem', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -1158,15 +1713,12 @@ const Dashboard = ({ onLogout }) => {
                         {/* Mostrar ícono + si tiene detalles de bultos, sino gris */}
                         {(() => {
                           const tieneMultiplesBultos = escaneo.cantidad_bultos && escaneo.cantidad_bultos > 1;
-                          console.log(`🔍 Escaneo ${escaneo.serial}: cantidad_bultos = ${escaneo.cantidad_bultos}, tieneMultiplesBultos = ${tieneMultiplesBultos}`);
-                          
                           return tieneMultiplesBultos ? (
                             <Tooltip title="Ver detalles de bultos individuales">
                               <IconButton 
                                 size="small" 
                                 sx={{ color: '#5b3ea3' }} 
                                 onClick={() => {
-                                  console.log('🖱️ Click en detalles de bultos para:', escaneo.serial);
                                   handleViewDetalleBultos(escaneo);
                                 }}
                               >
@@ -1383,74 +1935,32 @@ const Dashboard = ({ onLogout }) => {
     if (currentTab === 2) return <UserProfile />;
     if (currentTab === 3) return <Exportacion />;
     if (currentTab === 4) return <Reportes />;
+    if (currentTab === 5) return renderEstadisticasTab();
     return renderOtherTabs();
   };
 
   return (
-    <>
-      <AppBar position="static" elevation={0}>
-        <Toolbar sx={{ py: 1 }}>
-          <img src="/cloudblanco.png" alt="Logintec" style={{ height: '100px', width: 'auto', marginRight: '16px' }} onError={(e) => { e.target.style.display = 'none'; }} />
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }} />
-          
-          {/* Indicador de Modo Demo */}
-          {isDemoMode() && (
-            <Chip 
-              label="MODO DEMO" 
-              color="warning" 
-              variant="filled" 
-              sx={{ 
-                mr: 2, 
-                fontWeight: 'bold',
-                backgroundColor: '#ff9800',
-                color: 'white',
-                '& .MuiChip-label': {
-                  fontSize: '0.75rem'
-                }
-              }} 
-            />
-          )}
-          
-          {/* Indicador de Modo Real */}
-          {!isDemoMode() && (
-            <Chip 
-              label="MODO REAL" 
-              variant="filled" 
-              sx={{ 
-                mr: 2, 
-                fontWeight: 'bold',
-                backgroundColor: '#07c7c3',
-                color: 'white',
-                '& .MuiChip-label': {
-                  fontSize: '0.75rem'
-                }
-              }} 
-            />
-          )}
-          
-          <Button color="inherit" onClick={onLogout} startIcon={<LogoutIcon />}>Salir</Button>
-        </Toolbar>
-      </AppBar>
-      <Container maxWidth="xl" sx={{ py: 4, px: { xs: 1.5, sm: 3, md: 4 } }}>
-        <Paper elevation={0} sx={{ mb: 3 }}>
-          <Tabs
-            value={currentTab}
-            onChange={(e, val) => setCurrentTab(val)}
-            variant="scrollable"
-            scrollButtons="auto"
-            allowScrollButtonsMobile
-          >
-            <Tab label="EQUIPOS" sx={{ minWidth: { xs: 80, sm: 120 }, fontSize: { xs: '0.7rem', sm: '0.85rem' }, px: { xs: 1.5, sm: 2 } }} />
-            <Tab label="ESCANEOS" sx={{ minWidth: { xs: 90, sm: 130 }, fontSize: { xs: '0.7rem', sm: '0.85rem' }, px: { xs: 1.5, sm: 2 } }} />
-            <Tab label="USUARIO" sx={{ minWidth: { xs: 80, sm: 120 }, fontSize: { xs: '0.7rem', sm: '0.85rem' }, px: { xs: 1.5, sm: 2 } }} />
-            <Tab label="EXPORTACIÓN" sx={{ minWidth: { xs: 110, sm: 140 }, fontSize: { xs: '0.7rem', sm: '0.85rem' }, px: { xs: 1.5, sm: 2 } }} />
-            <Tab label="REPORTES" sx={{ minWidth: { xs: 90, sm: 130 }, fontSize: { xs: '0.7rem', sm: '0.85rem' }, px: { xs: 1.5, sm: 2 } }} />
-          </Tabs>
-        </Paper>
-        <Box sx={{ mt: 7 }}>{renderTabContent()}        </Box>
-      </Container>
-      
-      {/* Modal de Diagnóstico de Imágenes */}
+    <Box sx={{ flex: 1, minHeight: 0, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <DashboardShell
+        currentTab={currentTab}
+        onTabChange={setCurrentTab}
+        user={user}
+        onLogout={onLogout}
+        isDemo={isDemoMode()}
+        showRefresh={currentTab === 1 || currentTab === 5}
+        onRefresh={() => {
+          if (currentTab === 5) {
+            fetchEstadisticas();
+            return;
+          }
+          fetchEscaneos(paginaActual);
+        }}
+        colorMode={colorMode}
+        onToggleColorMode={onToggleColorMode}
+      >
+        {renderTabContent()}
+      </DashboardShell>
+
       {diagnosticData && (
         <WorkingImageDiagnosticModal
           open={diagnosticModalOpen}
@@ -1463,7 +1973,7 @@ const Dashboard = ({ onLogout }) => {
           serial={diagnosticData.serial}
         />
       )}
-    </>
+    </Box>
   );
 };
 
@@ -1472,23 +1982,77 @@ const Dashboard = ({ onLogout }) => {
 // ========================================================================
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('authToken'));
+  const [colorMode, setColorMode] = useState(() => {
+    const m = readStoredTheme();
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-theme', m);
+    }
+    return m;
+  });
+
+  const theme = useMemo(() => createAppTheme(colorMode), [colorMode]);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', colorMode);
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, colorMode);
+    } catch {
+      /* ignore */
+    }
+  }, [colorMode]);
+
+  const toggleColorMode = useCallback(() => {
+    setColorMode((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  }, []);
 
   const handleLogin = async (usuario, password) => {
     const response = await api.login(usuario, password);
     localStorage.setItem('authToken', response.data.access_token);
+    try {
+      const { data } = await api.fetchCurrentUser();
+      if (data) localStorage.setItem('userData', JSON.stringify(data));
+    } catch {
+      try {
+        if (!localStorage.getItem('userData')) {
+          localStorage.setItem(
+            'userData',
+            JSON.stringify({ nombre: usuario, email: usuario, rol: 'Usuario' }),
+          );
+        }
+      } catch {
+        /* ignore */
+      }
+    }
     setIsLoggedIn(true);
   };
 
   const handleLogout = () => {
     localStorage.removeItem('authToken');
+    localStorage.removeItem('userData');
     setIsLoggedIn(false);
   };
 
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ backgroundColor: '#FAFAFA', minHeight: '100vh' }}>
-        {isLoggedIn ? <Dashboard onLogout={handleLogout} /> : <LoginForm onLogin={handleLogin} />}
+      <Box
+        sx={{
+          minHeight: '100vh',
+          bgcolor: 'var(--background)',
+          ...(isLoggedIn && {
+            height: '100vh',
+            maxHeight: '100vh',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+          }),
+        }}
+      >
+        {isLoggedIn ? (
+          <Dashboard onLogout={handleLogout} colorMode={colorMode} onToggleColorMode={toggleColorMode} />
+        ) : (
+          <LoginForm onLogin={handleLogin} colorMode={colorMode} onToggleColorMode={toggleColorMode} />
+        )}
       </Box>
     </ThemeProvider>
   );

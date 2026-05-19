@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Paper, Typography, TextField, Button, Alert, Box, Divider, Avatar } from '@mui/material';
 import LockIcon from '@mui/icons-material/Lock';
+import ApiService from '../apiService';
 
 const UserProfile = () => {
   const [user, setUser] = useState({});
@@ -11,8 +12,31 @@ const UserProfile = () => {
   const [messageType, setMessageType] = useState("error");
 
   useEffect(() => {
-    const userData = JSON.parse(localStorage.getItem("user"));
-    setUser(userData || {});
+    let cancelled = false;
+
+    try {
+      const userData = JSON.parse(localStorage.getItem("userData") || "null");
+      if (userData) setUser(userData);
+    } catch {
+      /* ignore */
+    }
+
+    ApiService.getCurrentUser()
+      .then((userData) => {
+        if (cancelled || !userData) return;
+        setUser(userData);
+        localStorage.setItem("userData", JSON.stringify(userData));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setMessageType("warning");
+          setMessage("No se pudieron actualizar los datos del perfil.");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleChangePassword = async (e) => {
@@ -22,12 +46,8 @@ const UserProfile = () => {
       setMessage("Las contraseñas no coinciden");
       return;
     }
-    // Aquí deberías hacer la petición a tu backend para cambiar la contraseña
-    setMessageType("success");
-    setMessage("Contraseña cambiada correctamente (simulado)");
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
+    setMessageType("warning");
+    setMessage("El cambio de contraseña todavía no está conectado al backend.");
   };
 
   return (

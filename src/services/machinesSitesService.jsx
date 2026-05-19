@@ -4,7 +4,23 @@
 import axios from 'axios';
 import { formatDateArgentina } from '../utils/dateUtils';
 import ApiService from '../apiService';
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL, DEFAULT_ESCANEOS_PAGE_SIZE } from '../config/api';
+
+/** Primera página de escaneos en fallbacks (sitios/máquinas): un poco más que el listado para inferir filtros sin pedir 100 filas al backend. */
+const ESCANEOS_FALLBACK_PAGE_SIZE = Math.min(50, Math.max(25, DEFAULT_ESCANEOS_PAGE_SIZE * 2));
+
+const DEMO_MODE_KEY = 'logintec_demo_mode';
+
+function isDemoMode() {
+  return localStorage.getItem(DEMO_MODE_KEY) === 'true';
+}
+
+/** Token falso del login demo: el backend real siempre responde 401; no llamar API. */
+function hasNonBackendAuthToken() {
+  const t = localStorage.getItem('authToken') || '';
+  return isDemoMode() || t.startsWith('demo_token_');
+}
+
 // El cliente_id se obtiene automáticamente del token JWT en el backend
 
 class MachinesSitesService {
@@ -37,7 +53,7 @@ class MachinesSitesService {
    */
   static async getLastMeasurement() {
     try {
-      const response = await fetch('https://aghbackend.onrender.com/api/cloud/escaneos', {
+      const response = await fetch(`${API_BASE_URL}/api/cloud/escaneos`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('authToken')}`
         }
@@ -154,10 +170,40 @@ class MachinesSitesService {
     }
   }
 
+  static getDemoSitesForFilters() {
+    const nombres = ['Planta Central', 'Sucursal Norte', 'Planta Sur', 'Sucursal Este', 'PC San Martín'];
+    return nombres.map((nombre, idx) => ({
+      id: `demo-site-${idx}`,
+      nombre,
+      ubicacion: '',
+      tipo: 'PC',
+      ultima_conexion: null,
+      total_escaneos: 0,
+    }));
+  }
+
+  static getDemoMachinesForFilters() {
+    const modelos = ['Scanner 3D Pro', 'Scanner Compact', 'Scanner Industrial', 'Voxel Cam Pro'];
+    return modelos.map((nombre, idx) => ({
+      id: `demo-machine-${idx}`,
+      nombre,
+      modelo: nombre,
+      fabricante: 'AGH',
+      descripcion: '',
+      ip: '',
+      mac: '',
+      firmware: '',
+      ultima_medicion: null,
+    }));
+  }
+
   /**
    * 🔧 Obtiene todas las máquinas desde el backend
    */
   static async getAllMachines() {
+    if (hasNonBackendAuthToken()) {
+      return this.getDemoMachinesForFilters();
+    }
     try {
       console.log('🔧 Obteniendo máquinas desde PostgreSQL...');
       const response = await ApiService.getMaquinas();
@@ -188,33 +234,40 @@ class MachinesSitesService {
    * 🔄 FALLBACK: Obtiene máquinas desde escaneos (método anterior)
    */
   static async getAllMachinesFromScans() {
+    if (hasNonBackendAuthToken()) {
+      return this.getDemoMachinesForFilters();
+    }
     try {
       console.log('⚠️ Usando fallback: obteniendo máquinas desde escaneos...');
       const token = localStorage.getItem('authToken');
-      
+
       if (!token) {
         console.log('⚠️ No hay token, usando datos mock temporales');
         return this.getMockMachines();
       }
-      
-      const response = await axios.get(`${API_BASE_URL}/api/cloud/escaneos?page=1&page_size=100`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
+
+      const response = await axios.get(
+        `${API_BASE_URL}/api/cloud/escaneos?page=1&page_size=${ESCANEOS_FALLBACK_PAGE_SIZE}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
       const items = response.data.items || [];
       const maquinasMap = {};
-      
-      items.forEach(e => {
-        const key = e.machine_id;
-        if (key && !maquinasMap[key]) {
+
+      items.forEach((e) => {
+        const key = e.machine_id ?? e.maquina_modelo ?? e.maquina?.nombre ?? e.serial;
+        if (!key) return;
+        if (!maquinasMap[key]) {
           maquinasMap[key] = {
             id: key,
-            nombre: e.maquina?.nombre || 'Máquina Desconocida',
-            modelo: e.maquina?.modelo || 'N/A'
+            nombre: e.maquina?.nombre || e.maquina_modelo || 'Máquina Desconocida',
+            modelo: e.maquina?.modelo || e.maquina_modelo || 'N/A',
           };
         }
       });
-      
+
       return Object.values(maquinasMap);
     } catch (error) {
       console.error('❌ Error en fallback de máquinas:', error);
@@ -227,6 +280,9 @@ class MachinesSitesService {
    * 🏢 Obtiene todos los sitios desde el backend
    */
   static async getAllSites() {
+    if (hasNonBackendAuthToken()) {
+      return this.getDemoSitesForFilters();
+    }
     try {
       console.log('🏢 Obteniendo sitios desde PostgreSQL...');
       const response = await ApiService.getSitios();
@@ -254,36 +310,43 @@ class MachinesSitesService {
    * 🔄 FALLBACK: Obtiene sitios desde escaneos (método anterior)
    */
   static async getAllSitesFromScans() {
+    if (hasNonBackendAuthToken()) {
+      return this.getDemoSitesForFilters();
+    }
     try {
       console.log('⚠️ Usando fallback: obteniendo sitios desde escaneos...');
       const token = localStorage.getItem('authToken');
-      
+
       if (!token) {
         console.log('⚠️ No hay token, usando datos mock temporales');
         return this.getMockSites();
       }
-      
-      const response = await axios.get(`${API_BASE_URL}/api/cloud/escaneos?page=1&page_size=100`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
+
+      const response = await axios.get(
+        `${API_BASE_URL}/api/cloud/escaneos?page=1&page_size=${ESCANEOS_FALLBACK_PAGE_SIZE}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
       const items = response.data.items || [];
       const sitiosMap = {};
-      
-      items.forEach(e => {
-        const key = e.site_id;
-        if (key && !sitiosMap[key]) {
+
+      items.forEach((e) => {
+        const key = e.site_id ?? e.site_name ?? e.sitio?.nombre;
+        if (!key) return;
+        if (!sitiosMap[key]) {
           sitiosMap[key] = {
             id: key,
-            nombre: e.sitio?.nombre || 'Sitio Desconocido',
+            nombre: e.sitio?.nombre || e.site_name || 'Sitio Desconocido',
             ubicacion: e.sitio?.ubicacion || 'Ubicación Desconocida',
             tipo: 'PC',
             estado: 'activo',
-            ultima_conexion: e.fecha
+            ultima_conexion: e.fecha,
           };
         }
       });
-      
+
       return Object.values(sitiosMap);
     } catch (error) {
       console.error('❌ Error en fallback de sitios:', error);
