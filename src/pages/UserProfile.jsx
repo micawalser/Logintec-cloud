@@ -3,8 +3,21 @@ import { Paper, Typography, TextField, Button, Alert, Box, Divider, Avatar } fro
 import LockIcon from '@mui/icons-material/Lock';
 import ApiService from '../apiService';
 
+const MIN_PASSWORD_LENGTH = 8;
+
+function normalizeUser(raw) {
+  if (!raw || typeof raw !== 'object') return {};
+  return {
+    ...raw,
+    nombre: raw.nombre || raw.full_name || raw.name || raw.username || raw.usuario || '',
+    email: raw.email || raw.correo || raw.mail || '',
+  };
+}
+
 const UserProfile = () => {
   const [user, setUser] = useState({});
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [passwordLoading, setPasswordLoading] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -16,7 +29,7 @@ const UserProfile = () => {
 
     try {
       const userData = JSON.parse(localStorage.getItem("userData") || "null");
-      if (userData) setUser(userData);
+      if (userData) setUser(normalizeUser(userData));
     } catch {
       /* ignore */
     }
@@ -24,14 +37,18 @@ const UserProfile = () => {
     ApiService.getCurrentUser()
       .then((userData) => {
         if (cancelled || !userData) return;
-        setUser(userData);
-        localStorage.setItem("userData", JSON.stringify(userData));
+        const normalized = normalizeUser(userData);
+        setUser(normalized);
+        localStorage.setItem("userData", JSON.stringify(normalized));
       })
       .catch(() => {
         if (!cancelled) {
           setMessageType("warning");
-          setMessage("No se pudieron actualizar los datos del perfil.");
+          setMessage("No se pudieron cargar los datos del perfil. Verificá que la sesión siga activa.");
         }
+      })
+      .finally(() => {
+        if (!cancelled) setProfileLoading(false);
       });
 
     return () => {
@@ -41,13 +58,53 @@ const UserProfile = () => {
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
+    setMessage("");
+
     if (newPassword !== confirmPassword) {
       setMessageType("error");
-      setMessage("Las contraseñas no coinciden");
+      setMessage("Las contraseñas nuevas no coinciden.");
       return;
     }
-    setMessageType("warning");
-    setMessage("El cambio de contraseña todavía no está conectado al backend.");
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      setMessageType("error");
+      setMessage(`La nueva contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`);
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      await ApiService.changePassword(currentPassword, newPassword);
+      setMessageType("success");
+      setMessage("Contraseña actualizada correctamente.");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error) {
+      const status = error?.response?.status;
+      const detail = error?.response?.data?.detail;
+
+      if (status === 404) {
+        setMessageType("warning");
+        setMessage(
+          "El servidor aún no tiene habilitado el cambio de contraseña. Hay que agregar el endpoint POST /api/cloud/change-password en el backend (aghbackend).",
+        );
+      } else if (status === 400 || status === 401) {
+        setMessageType("error");
+        setMessage(
+          typeof detail === 'string'
+            ? detail
+            : 'La contraseña actual es incorrecta.',
+        );
+      } else if (status === 422) {
+        setMessageType("error");
+        setMessage('Datos inválidos. Revisá los campos e intentá de nuevo.');
+      } else {
+        setMessageType("error");
+        setMessage('No se pudo cambiar la contraseña. Intentá más tarde.');
+      }
+    } finally {
+      setPasswordLoading(false);
+    }
   };
 
   return (
@@ -62,9 +119,13 @@ const UserProfile = () => {
         <Divider sx={{ mb: 2 }} />
         <Box sx={{ mb: 2 }}>
           <Typography variant="subtitle2" color="text.secondary">Nombre</Typography>
-          <Typography variant="body1" sx={{ mb: 1 }}>{user.nombre || "-"}</Typography>
+          <Typography variant="body1" sx={{ mb: 1 }}>
+            {profileLoading ? 'Cargando...' : (user.nombre || '—')}
+          </Typography>
           <Typography variant="subtitle2" color="text.secondary">Email</Typography>
-          <Typography variant="body1">{user.email || "-"}</Typography>
+          <Typography variant="body1">
+            {profileLoading ? 'Cargando...' : (user.email || '—')}
+          </Typography>
         </Box>
         <Divider sx={{ my: 2 }} />
         <Typography variant="h6" fontWeight={500} sx={{ mb: 2 }}>Cambiar contraseña</Typography>
@@ -99,8 +160,15 @@ const UserProfile = () => {
             margin="normal"
             autoComplete="new-password"
           />
-          <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 2, py: 1.2, fontWeight: 600 }}>
-            Cambiar contraseña
+          <Button
+            type="submit"
+            variant="contained"
+            color="primary"
+            fullWidth
+            disabled={passwordLoading || profileLoading}
+            sx={{ mt: 2, py: 1.2, fontWeight: 600 }}
+          >
+            {passwordLoading ? 'Guardando...' : 'Cambiar contraseña'}
           </Button>
         </Box>
         {message && (

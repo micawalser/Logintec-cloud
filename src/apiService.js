@@ -3,6 +3,15 @@ import { API_BASE_URL, BACKEND_PUBLIC_URL, DEFAULT_ESCANEOS_PAGE_SIZE } from './
 
 class ApiService {
 
+  static normalizeUserData(raw) {
+    if (!raw || typeof raw !== 'object') return raw;
+    return {
+      ...raw,
+      nombre: raw.nombre || raw.full_name || raw.name || raw.username || raw.usuario || '',
+      email: raw.email || raw.correo || raw.mail || '',
+    };
+  }
+
   /**
    * ✅ Realiza el login del usuario.
    * Si es exitoso, guarda el token y los datos del usuario en localStorage.
@@ -24,7 +33,7 @@ class ApiService {
       localStorage.setItem('authToken', response.data.access_token);
       
       // Inmediatamente después del login, obtenemos los datos del usuario.
-      const userDetails = await this.getCurrentUser();
+      const userDetails = this.normalizeUserData(await this.getCurrentUser());
       localStorage.setItem('userData', JSON.stringify(userDetails));
       return userDetails;
     }
@@ -61,6 +70,22 @@ class ApiService {
     const response = await axios.get(`${API_BASE_URL}/api/cloud/me`, {
         headers: this.getAuthHeaders()
     });
+    return this.normalizeUserData(response.data);
+  }
+
+  /**
+   * Cambia la contraseña del usuario logueado.
+   * Requiere endpoint en el backend: POST /api/cloud/change-password
+   */
+  static async changePassword(currentPassword, newPassword) {
+    const response = await axios.post(
+      `${API_BASE_URL}/api/cloud/change-password`,
+      {
+        current_password: currentPassword,
+        new_password: newPassword,
+      },
+      { headers: this.getAuthHeaders() },
+    );
     return response.data;
   }
 

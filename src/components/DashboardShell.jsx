@@ -77,7 +77,7 @@ export function DashboardShell({
   const [anchorEl, setAnchorEl] = useState(null);
 
   const activeLabel = NAV.find((n) => n.tab === currentTab)?.name ?? 'Dashboard';
-  const nombre = user?.nombre || user?.name || 'Usuario';
+  const nombre = user?.nombre || user?.full_name || user?.name || 'Usuario';
   const email = user?.email || '';
   const rol = user?.rol || user?.role || '';
 
