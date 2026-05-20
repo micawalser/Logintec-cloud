@@ -59,6 +59,26 @@ function getInitials(nombre) {
     .slice(0, 2);
 }
 
+const userAvatarSx = {
+  width: 32,
+  height: 32,
+  minWidth: 32,
+  flexShrink: 0,
+  borderRadius: '50%',
+  border: '1px solid rgba(91, 62, 163, 0.35)',
+  bgcolor: 'rgba(91, 62, 163, 0.12)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  overflow: 'hidden',
+  fontSize: '0.6875rem',
+  fontWeight: 700,
+  lineHeight: 1,
+  letterSpacing: '-0.04em',
+  color: 'var(--primary)',
+  fontFamily: 'inherit',
+};
+
 export function DashboardShell({
   currentTab,
   onTabChange,
@@ -161,35 +181,23 @@ export function DashboardShell({
           fullWidth
           onClick={(e) => setAnchorEl(e.currentTarget)}
           sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.25,
             justifyContent: 'flex-start',
             textTransform: 'none',
             color: 'inherit',
             borderRadius: 2,
             py: 1.25,
             px: 1.5,
+            minWidth: 0,
             '&:hover': { bgcolor: 'rgba(255,255,255,0.06)' },
           }}
-          startIcon={
-            <Box
-              sx={{
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                border: '1px solid rgba(91, 62, 163, 0.35)',
-                bgcolor: 'rgba(91, 62, 163, 0.12)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                color: 'var(--primary)',
-              }}
-            >
-              {getInitials(nombre)}
-            </Box>
-          }
         >
-          <Box sx={{ textAlign: 'left', overflow: 'hidden' }}>
+          <Box component="span" sx={userAvatarSx}>
+            {getInitials(nombre)}
+          </Box>
+          <Box sx={{ textAlign: 'left', overflow: 'hidden', minWidth: 0 }}>
             <Typography noWrap sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
               {nombre}
             </Typography>
