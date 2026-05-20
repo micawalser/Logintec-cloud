@@ -22,7 +22,6 @@ import {
   LightMode as LightModeIcon,
   DarkMode as DarkModeIcon,
   BarChart as StatsBarChartIcon,
-  TrendingUp as TrendingUpIcon,
   Inventory2 as PackageIcon,
   Scale as ScaleIcon,
   Timeline as ActivityIcon,
@@ -519,6 +518,51 @@ const numberOrZero = (value) => {
   return Number.isFinite(number) ? number : 0;
 };
 
+const parseFechaEscaneo = (escaneo) => {
+  const raw =
+    escaneo?.fecha ??
+    escaneo?.timestamp_str ??
+    escaneo?.fecha_escaneo ??
+    escaneo?.created_at ??
+    escaneo?.timestamp;
+  if (raw == null || raw === '') return null;
+  const normalized =
+    typeof raw === 'string' && raw.includes(' ') && !raw.includes('T')
+      ? raw.replace(' ', 'T')
+      : raw;
+  const d = new Date(normalized);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+const startOfDay = (date) => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+const startOfWeek = (date) => {
+  const d = startOfDay(date);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d;
+};
+
+const startOfMonth = (date) => {
+  const d = startOfDay(date);
+  d.setDate(1);
+  return d;
+};
+
+const mapEscaneoItem = (escaneo) => {
+  const enriched = MachinesSitesService.enrichScanWithMachineData(escaneo);
+  return {
+    ...enriched,
+    fecha: escaneo.timestamp_str || escaneo.fecha,
+    cantidad_bultos: escaneo.cantidad_total_bultos || escaneo.cantidad_bultos || 1,
+  };
+};
+
 const formatStatNumber = (value, decimals = 0) => {
   const number = numberOrZero(value);
   return number.toLocaleString('es-AR', {
@@ -920,6 +964,7 @@ const Dashboard = ({ onLogout, colorMode, onToggleColorMode }) => {
   const [escaneos, setEscaneos] = useState([]);
   const [escaneosFiltrados, setEscaneosFiltrados] = useState([]);
   const [estadisticas, setEstadisticas] = useState({});
+  const [statsEscaneos, setStatsEscaneos] = useState([]);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -991,15 +1036,7 @@ const Dashboard = ({ onLogout, colorMode, onToggleColorMode }) => {
       const { items, total, page, page_size } = response.data;
       
       // ✅ MAPEAR campos y pre-enriquecer datos
-      const itemsMapeados = (items || []).map(escaneo => {
-        const enriched = MachinesSitesService.enrichScanWithMachineData(escaneo);
-        return {
-          ...enriched,
-          // La API nueva envía la fecha como timestamp_str, la normalizamos a fecha
-          fecha: escaneo.timestamp_str || escaneo.fecha,
-          cantidad_bultos: escaneo.cantidad_total_bultos || escaneo.cantidad_bultos || 1
-        };
-      });
+      const itemsMapeados = (items || []).map(mapEscaneoItem);
       
       setEscaneos(itemsMapeados);
       setPaginaActual(page || 1);
@@ -1025,19 +1062,44 @@ const Dashboard = ({ onLogout, colorMode, onToggleColorMode }) => {
     }
   }, []);
 
+  const fetchTodosEscaneosParaStats = useCallback(async () => {
+    const todos = [];
+    let pagina = 1;
+    let hayMas = true;
+
+    while (hayMas) {
+      const response = await api.fetchEscaneos(pagina);
+      const { items, total, page_size } = response.data;
+      todos.push(...(items || []).map(mapEscaneoItem));
+
+      if ((items || []).length < page_size || todos.length >= (total || 0)) {
+        hayMas = false;
+      } else {
+        pagina += 1;
+      }
+    }
+
+    return todos;
+  }, []);
+
   const fetchEstadisticas = useCallback(async () => {
     setStatsLoading(true);
     setStatsError('');
     try {
-      const response = await api.fetchStats();
-      setEstadisticas(response.data || DEMO_DATA.estadisticas);
+      const [statsRes, escaneosLista] = await Promise.all([
+        api.fetchStats(),
+        fetchTodosEscaneosParaStats(),
+      ]);
+      setEstadisticas(isDemoMode() ? DEMO_DATA.estadisticas : (statsRes.data || {}));
+      setStatsEscaneos(escaneosLista);
     } catch (err) {
       console.error('Error cargando estadísticas:', err);
       setStatsError('No se pudieron cargar las estadísticas.');
+      setStatsEscaneos([]);
     } finally {
       setStatsLoading(false);
     }
-  }, []);
+  }, [fetchTodosEscaneosParaStats]);
 
   /**
    * Tab Escaneos: primero lista (backend ya enriquece sitio/máquina por fila).
@@ -1118,9 +1180,41 @@ const Dashboard = ({ onLogout, colorMode, onToggleColorMode }) => {
 
   const cantidadRegistrosEscaneos = totalEscaneos || escaneosVisiblesParaTabla.length;
 
-  const chartDataEstadisticas = useMemo(() => {
-    if (!escaneos.length) return DEMO_CHART_DATA;
+  const statsComputadas = useMemo(() => {
+    const now = new Date();
+    const hoyStart = startOfDay(now);
+    const semanaStart = startOfWeek(now);
+    const mesStart = startOfMonth(now);
 
+    let escaneos_hoy = 0;
+    let escaneos_semana = 0;
+    let escaneos_mes = 0;
+    let volumen_total = 0;
+    let peso_total = 0;
+
+    statsEscaneos.forEach((escaneo) => {
+      volumen_total += numberOrZero(escaneo.volumen ?? escaneo.volumen_total);
+      peso_total += numberOrZero(escaneo.peso ?? escaneo.peso_total);
+
+      const fecha = parseFechaEscaneo(escaneo);
+      if (!fecha) return;
+      if (fecha >= hoyStart) escaneos_hoy += 1;
+      if (fecha >= semanaStart) escaneos_semana += 1;
+      if (fecha >= mesStart) escaneos_mes += 1;
+    });
+
+    const totalApi = numberOrZero(estadisticas.total_escaneos);
+    return {
+      total_escaneos: totalApi > 0 ? totalApi : statsEscaneos.length,
+      escaneos_hoy,
+      escaneos_semana,
+      escaneos_mes,
+      volumen_total,
+      peso_total,
+    };
+  }, [statsEscaneos, estadisticas.total_escaneos]);
+
+  const chartDataEstadisticas = useMemo(() => {
     const dayLabels = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
     const today = new Date();
     const days = Array.from({ length: 7 }, (_, index) => {
@@ -1134,39 +1228,52 @@ const Dashboard = ({ onLogout, colorMode, onToggleColorMode }) => {
       };
     });
 
+    if (!statsEscaneos.length) {
+      return isDemoMode() ? DEMO_CHART_DATA : days;
+    }
+
     const byDate = new Map(days.map((day) => [day.key, day]));
-    escaneos.forEach((escaneo) => {
-      if (!escaneo.fecha) return;
-      const scanDate = new Date(escaneo.fecha);
-      if (Number.isNaN(scanDate.getTime())) return;
+    statsEscaneos.forEach((escaneo) => {
+      const scanDate = parseFechaEscaneo(escaneo);
+      if (!scanDate) return;
       const key = scanDate.toISOString().slice(0, 10);
       const target = byDate.get(key);
       if (!target) return;
       target.scans += 1;
-      target.volume += numberOrZero(escaneo.volumen);
+      target.volume += numberOrZero(escaneo.volumen ?? escaneo.volumen_total);
     });
 
     return days.map(({ day, scans, volume }) => ({ day, scans, volume }));
-  }, [escaneos]);
+  }, [statsEscaneos]);
 
   const topUsuariosEstadisticas = useMemo(() => {
-    if (!escaneos.length) return DEMO_TOP_USERS;
+    if (!statsEscaneos.length) {
+      return isDemoMode() ? DEMO_TOP_USERS : [];
+    }
 
+    const mesStart = startOfMonth(new Date());
     const usersMap = new Map();
-    escaneos.forEach((escaneo) => {
-      const name = escaneo.usuario || escaneo.usuario_escaneo || escaneo.username || 'Sin usuario';
+
+    statsEscaneos.forEach((escaneo) => {
+      const fecha = parseFechaEscaneo(escaneo);
+      if (!fecha || fecha < mesStart) return;
+
+      const name =
+        escaneo.usuario_nombre_completo ||
+        escaneo.usuario ||
+        escaneo.usuario_escaneo ||
+        escaneo.username ||
+        'Sin usuario';
       const current = usersMap.get(name) || { name, scans: 0, volume: 0 };
       current.scans += 1;
-      current.volume += numberOrZero(escaneo.volumen);
+      current.volume += numberOrZero(escaneo.volumen ?? escaneo.volumen_total);
       usersMap.set(name, current);
     });
 
-    const users = Array.from(usersMap.values())
+    return Array.from(usersMap.values())
       .sort((a, b) => b.scans - a.scans || b.volume - a.volume)
       .slice(0, 5);
-
-    return users.length ? users : DEMO_TOP_USERS;
-  }, [escaneos]);
+  }, [statsEscaneos]);
 
   // Función mejorada para manejar la carga de imágenes
   const handleViewImage = async (scanId, tipo, forceCheck = false) => {
@@ -1361,16 +1468,19 @@ const Dashboard = ({ onLogout, colorMode, onToggleColorMode }) => {
   };
 
   const renderEstadisticasTab = () => {
-    const stats = estadisticas || {};
-    const total = numberOrZero(stats.total_escaneos ?? totalEscaneos);
-    const imagenes3d = escaneos.length
-      ? Math.round((escaneos.filter((escaneo) => escaneo.tiene_imagen_3d).length / escaneos.length) * 100)
-      : 92;
-    const fotosCamara = escaneos.length
-      ? Math.round((escaneos.filter((escaneo) => escaneo.tiene_imagen_camara).length / escaneos.length) * 100)
-      : 65;
-    const utilizacion = total > 0 ? Math.min(100, Math.max(1, Math.round((numberOrZero(stats.escaneos_mes) / total) * 100))) : 78;
-    const tasaExito = escaneos.length ? 100 : 96;
+    const stats = statsComputadas;
+    const total = stats.total_escaneos;
+    const imagenes3d = statsEscaneos.length
+      ? Math.round((statsEscaneos.filter((e) => e.tiene_imagen_3d).length / statsEscaneos.length) * 100)
+      : 0;
+    const fotosCamara = statsEscaneos.length
+      ? Math.round((statsEscaneos.filter((e) => e.tiene_imagen_camara).length / statsEscaneos.length) * 100)
+      : 0;
+    const utilizacion = total > 0 ? Math.min(100, Math.round((stats.escaneos_mes / total) * 100)) : 0;
+    const conFecha = statsEscaneos.filter((e) => parseFechaEscaneo(e)).length;
+    const tasaExito = statsEscaneos.length
+      ? Math.round((conFecha / statsEscaneos.length) * 100)
+      : 0;
     const maxScans = Math.max(1, ...chartDataEstadisticas.map((data) => data.scans));
 
     return (
@@ -1388,10 +1498,10 @@ const Dashboard = ({ onLogout, colorMode, onToggleColorMode }) => {
             gap: 2,
           }}
         >
-          <StatCard icon={StatsBarChartIcon} label="Total Escaneos" value={formatStatNumber(stats.total_escaneos ?? totalEscaneos)} trend="+12%" />
-          <StatCard icon={ActivityIcon} label="Hoy" value={formatStatNumber(stats.escaneos_hoy)} trend="+3" />
-          <StatCard icon={CalendarIcon} label="Esta Semana" value={formatStatNumber(stats.escaneos_semana)} trend="+8%" />
-          <StatCard icon={CalendarIcon} label="Este Mes" value={formatStatNumber(stats.escaneos_mes)} trend="+15%" />
+          <StatCard icon={StatsBarChartIcon} label="Total Escaneos" value={formatStatNumber(stats.total_escaneos)} />
+          <StatCard icon={ActivityIcon} label="Hoy" value={formatStatNumber(stats.escaneos_hoy)} />
+          <StatCard icon={CalendarIcon} label="Esta Semana" value={formatStatNumber(stats.escaneos_semana)} />
+          <StatCard icon={CalendarIcon} label="Este Mes" value={formatStatNumber(stats.escaneos_mes)} />
           <StatCard icon={PackageIcon} label="Volumen Total" value={formatStatNumber(stats.volumen_total, 1)} unit="dm³" />
           <StatCard icon={ScaleIcon} label="Peso Total" value={formatStatNumber(stats.peso_total, 1)} unit="kg" />
         </Box>
@@ -1416,10 +1526,11 @@ const Dashboard = ({ onLogout, colorMode, onToggleColorMode }) => {
                 <Typography sx={{ fontSize: '1.05rem', fontWeight: 700 }}>Escaneos por Día</Typography>
                 <Typography sx={{ fontSize: '0.85rem', color: 'var(--muted-foreground)' }}>Últimos 7 días</Typography>
               </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, color: '#10b981' }}>
-                <TrendingUpIcon sx={{ fontSize: 18 }} />
-                <Typography sx={{ fontSize: '0.85rem', fontWeight: 700 }}>+12.5%</Typography>
-              </Box>
+              {stats.escaneos_semana > 0 && (
+                <Typography sx={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--muted-foreground)' }}>
+                  {stats.escaneos_semana} esta semana
+                </Typography>
+              )}
             </Box>
 
             <Box sx={{ height: 190, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 1.25 }}>
@@ -1463,6 +1574,11 @@ const Dashboard = ({ onLogout, colorMode, onToggleColorMode }) => {
           </Box>
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+            {topUsuariosEstadisticas.length === 0 && !statsLoading && (
+              <Typography sx={{ fontSize: '0.85rem', color: 'var(--muted-foreground)' }}>
+                No hay escaneos este mes para mostrar usuarios.
+              </Typography>
+            )}
             {topUsuariosEstadisticas.map((usuario, index) => (
               <Box
                 key={usuario.name}
