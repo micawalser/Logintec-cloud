@@ -8,7 +8,8 @@
     "build": "vite build && node scripts/gh-pages-postbuild.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "node server.js"
+    "start": "node server.js",
+    "deploy": "npm run build && npx gh-pages -d dist"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -31,6 +32,7 @@
     "eslint": "^9.25.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
-    "globals": "^16.0.0"
+    "globals": "^16.0.0",
+    "gh-pages": "^6.3.0"
   }
 }
