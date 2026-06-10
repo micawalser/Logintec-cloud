@@ -2,7 +2,7 @@
 // ✅ ACTUALIZADO - Usando endpoints de PostgreSQL para sitios y máquinas
 
 import axios from 'axios';
-import { formatDateArgentina } from '../utils/dateUtils';
+import { formatDateArgentina, parseArgentinaDate } from '../utils/dateUtils';
 import ApiService from '../apiService';
 import { API_BASE_URL, DEFAULT_ESCANEOS_PAGE_SIZE } from '../config/api';
 
@@ -65,7 +65,7 @@ class MachinesSitesService {
         // Buscar el último escaneo (el más reciente)
         if (escaneos && escaneos.length > 0) {
           const lastScan = escaneos
-            .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))[0];
+            .sort((a, b) => (parseArgentinaDate(b.fecha) ?? 0) - (parseArgentinaDate(a.fecha) ?? 0))[0];
           
           return lastScan.fecha;
         }

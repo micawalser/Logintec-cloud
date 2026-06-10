@@ -30,6 +30,7 @@ const UTF8_BOM = '\uFEFF';
 import MachinesSitesService from '../services/machinesSitesService';
 import axios from 'axios';
 import { API_BASE_URL, DEFAULT_ESCANEOS_PAGE_SIZE } from '../config/api';
+import { formatDateArgentina, parseArgentinaDate } from '../utils/dateUtils';
 
 const HISTORY_KEY = 'logintec_export_history';
 const MAX_HISTORY = 8;
@@ -116,14 +117,12 @@ const Exportacion = () => {
 
   const getFechaEscaneo = (e) => {
     const raw = e.fecha ?? e.fecha_escaneo ?? e.created_at ?? e.timestamp ?? e.timestamp_str ?? e.fecha_creacion ?? e.scan_date;
-    if (raw == null || raw === '') return null;
-    const d = new Date(raw);
-    return isNaN(d.getTime()) ? null : raw;
+    return parseArgentinaDate(raw);
   };
 
   const formatearFecha = (e) => {
-    const raw = getFechaEscaneo(e);
-    return raw ? new Date(raw).toLocaleString('es-AR') : '';
+    const d = getFechaEscaneo(e);
+    return d ? formatDateArgentina(d) : '';
   };
 
   const getFieldValue = (e, fieldId) => {
@@ -198,21 +197,18 @@ const Exportacion = () => {
 
       if (fechaInicio) {
         filtrados = filtrados.filter((e) => {
-          const raw = getFechaEscaneo(e);
-          if (!raw) return false;
-          const fechaEscaneo = new Date(raw);
-          return !isNaN(fechaEscaneo.getTime()) && fechaEscaneo >= new Date(fechaInicio);
+          const fechaEscaneo = getFechaEscaneo(e);
+          return fechaEscaneo && fechaEscaneo >= new Date(fechaInicio);
         });
       }
 
       if (fechaFin) {
         filtrados = filtrados.filter((e) => {
-          const raw = getFechaEscaneo(e);
-          if (!raw) return false;
-          const fechaEscaneo = new Date(raw);
+          const fechaEscaneo = getFechaEscaneo(e);
+          if (!fechaEscaneo) return false;
           const fechaFinDate = new Date(fechaFin);
           fechaFinDate.setHours(23, 59, 59, 999);
-          return !isNaN(fechaEscaneo.getTime()) && fechaEscaneo <= fechaFinDate;
+          return fechaEscaneo <= fechaFinDate;
         });
       }
 
@@ -441,20 +437,17 @@ const Exportacion = () => {
       let filtrados = [...escaneos];
       if (cfg.fechaInicio) {
         filtrados = filtrados.filter((e) => {
-          const raw = getFechaEscaneo(e);
-          if (!raw) return false;
-          const d = new Date(raw);
-          return !isNaN(d.getTime()) && d >= new Date(cfg.fechaInicio);
+          const d = getFechaEscaneo(e);
+          return d && d >= new Date(cfg.fechaInicio);
         });
       }
       if (cfg.fechaFin) {
         filtrados = filtrados.filter((e) => {
-          const raw = getFechaEscaneo(e);
-          if (!raw) return false;
-          const d = new Date(raw);
+          const d = getFechaEscaneo(e);
+          if (!d) return false;
           const fin = new Date(cfg.fechaFin);
           fin.setHours(23, 59, 59, 999);
-          return !isNaN(d.getTime()) && d <= fin;
+          return d <= fin;
         });
       }
       if (cfg.filtroSitio) {

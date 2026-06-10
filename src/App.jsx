@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import axios from 'axios';
 import ApiService from './apiService';
-import { formatDateArgentina } from './utils/dateUtils';
+import { formatDateArgentina, parseArgentinaDate } from './utils/dateUtils';
 import { checkAuthStatus, checkApiConnectivity, diagnoseImageProblem } from './utils/imageUtils';
 import {
   Box, TextField, Button, Paper, Typography,
@@ -525,13 +525,7 @@ const parseFechaEscaneo = (escaneo) => {
     escaneo?.fecha_escaneo ??
     escaneo?.created_at ??
     escaneo?.timestamp;
-  if (raw == null || raw === '') return null;
-  const normalized =
-    typeof raw === 'string' && raw.includes(' ') && !raw.includes('T')
-      ? raw.replace(' ', 'T')
-      : raw;
-  const d = new Date(normalized);
-  return Number.isNaN(d.getTime()) ? null : d;
+  return parseArgentinaDate(raw);
 };
 
 const startOfDay = (date) => {
@@ -1175,7 +1169,7 @@ const Dashboard = ({ onLogout, colorMode, onToggleColorMode }) => {
 
   const escaneosVisiblesParaTabla = useMemo(() => {
     const list = filtrarDuplicadosPorSerial(escaneosFiltrados);
-    return [...list].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    return [...list].sort((a, b) => (parseArgentinaDate(b.fecha) ?? 0) - (parseArgentinaDate(a.fecha) ?? 0));
   }, [escaneosFiltrados]);
 
   const cantidadRegistrosEscaneos = totalEscaneos || escaneosVisiblesParaTabla.length;
@@ -2187,7 +2181,7 @@ function filtrarDuplicadosPorSerial(escaneos) {
   escaneos.forEach(e => {
     const serial = e.serial;
     if (!serial) return;
-    if (!map[serial] || new Date(e.fecha) > new Date(map[serial].fecha)) {
+    if (!map[serial] || (parseArgentinaDate(e.fecha) ?? 0) > (parseArgentinaDate(map[serial].fecha) ?? 0)) {
       map[serial] = e;
     }
   });
