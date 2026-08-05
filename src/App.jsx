@@ -881,7 +881,7 @@ const EscaneosTable = ({ escaneos, onViewImage, loadingImages }) => {
                 <TableCell><Typography variant="body2" sx={{ color: '#5b3ea3', fontWeight: 500 }}>{getUsuarioValue(escaneo)}</Typography></TableCell>
                 <TableCell>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                    {escaneo.machine_name || escaneo.maquina?.nombre || escaneo.maquina_modelo || 'N/D'}
+                    {escaneo.maquina?.modelo || escaneo.maquina_modelo || escaneo.machine_model || 'N/D'}
                   </Typography>
                 </TableCell>
                 <TableCell>
@@ -1007,7 +1007,8 @@ const Dashboard = ({ onLogout, colorMode, onToggleColorMode }) => {
         MachinesSitesService.getAllMachines(),
       ]);
       setSitiosUnicos(sitios.map((s) => s.nombre).filter(Boolean));
-      setMaquinasUnicas(maquinas.map((m) => m.nombre).filter(Boolean));
+      // El filtro de máquinas usa el modelo de catálogo; varias unidades comparten modelo.
+      setMaquinasUnicas([...new Set(maquinas.map((m) => m.modelo).filter(Boolean))]);
       setFiltrosCargados(true);
       filtrosCargadosRef.current = true;
     } catch (error) {
@@ -1161,7 +1162,9 @@ const Dashboard = ({ onLogout, colorMode, onToggleColorMode }) => {
     }
     if (filtroMaquina) {
       filtrados = filtrados.filter(escaneo => 
-        escaneo.maquina?.nombre === filtroMaquina || escaneo.maquina_modelo === filtroMaquina
+        escaneo.maquina?.modelo === filtroMaquina ||
+        escaneo.maquina_modelo === filtroMaquina ||
+        escaneo.machine_model === filtroMaquina
       );
     }
     setEscaneosFiltrados(filtrados);
@@ -1729,7 +1732,7 @@ const Dashboard = ({ onLogout, colorMode, onToggleColorMode }) => {
                         </Tooltip>
                       </TableCell>
                       <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.usuario || escaneo.usuario_escaneo || escaneo.username || 'N/D'}</TableCell>
-                      <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.machine_name || escaneo.maquina?.nombre || escaneo.maquina_modelo || 'N/D'}</TableCell>
+                      <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.maquina?.modelo || escaneo.maquina_modelo || escaneo.machine_model || 'N/D'}</TableCell>
                       <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.site_name || escaneo.sitio?.nombre || escaneo.site_name || 'N/D'}</TableCell>
                       <TableCell sx={{ fontSize: '0.85rem' }}>{formatDate(escaneo.fecha)}</TableCell>
                       <TableCell sx={{ fontSize: '0.92rem' }}>{escaneo.ancho}</TableCell>

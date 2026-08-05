@@ -125,6 +125,9 @@ const Exportacion = () => {
     return d ? formatDateArgentina(d) : '';
   };
 
+  /** La máquina se identifica por el modelo de catálogo, no por el número de serie de la unidad. */
+  const getModeloMaquina = (e) => e.maquina?.modelo || e.maquina_modelo || e.machine_model || '';
+
   const getFieldValue = (e, fieldId) => {
     const volumen =
       e.volumen ||
@@ -140,7 +143,7 @@ const Exportacion = () => {
       case 'fecha':
         return formatearFecha(e);
       case 'maquina':
-        return e.machine_name || e.maquina?.nombre || e.maquina_modelo || '';
+        return getModeloMaquina(e);
       case 'sitio':
         return e.site_name || e.sitio?.nombre || '';
       case 'ancho':
@@ -220,10 +223,7 @@ const Exportacion = () => {
       }
 
       if (filtroMaquina) {
-        filtrados = filtrados.filter((e) => {
-          const maquinaNombre = e.machine_name || e.maquina?.nombre || e.maquina_modelo || '';
-          return maquinaNombre === filtroMaquina;
-        });
+        filtrados = filtrados.filter((e) => getModeloMaquina(e) === filtroMaquina);
       }
 
       return filtrados;
@@ -234,6 +234,13 @@ const Exportacion = () => {
   const fieldsActivos = useMemo(
     () => FIELD_DEFS.filter((f) => selectedFields.includes(f.id)),
     [selectedFields],
+  );
+
+  /** Varias unidades instaladas comparten modelo: el desplegable lista modelos, no unidades. */
+  const modelosMaquina = useMemo(
+    () => [...new Set(maquinas.map((m) => m.modelo).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, 'es')),
+    [maquinas],
   );
 
   const convertirACSV = (datos, fields = fieldsActivos) => {
@@ -454,9 +461,7 @@ const Exportacion = () => {
         filtrados = filtrados.filter((e) => (e.site_name || e.sitio?.nombre || '') === cfg.filtroSitio);
       }
       if (cfg.filtroMaquina) {
-        filtrados = filtrados.filter(
-          (e) => (e.machine_name || e.maquina?.nombre || e.maquina_modelo || '') === cfg.filtroMaquina,
-        );
+        filtrados = filtrados.filter((e) => getModeloMaquina(e) === cfg.filtroMaquina);
       }
       return filtrados;
     };
@@ -617,9 +622,9 @@ const Exportacion = () => {
                     disabled={cargandoOpciones}
                   >
                     <MenuItem value="">Todas las máquinas</MenuItem>
-                    {maquinas.map((maquina) => (
-                      <MenuItem key={maquina.id} value={maquina.nombre}>
-                        {maquina.nombre}
+                    {modelosMaquina.map((modelo) => (
+                      <MenuItem key={modelo} value={modelo}>
+                        {modelo}
                       </MenuItem>
                     ))}
                   </TextField>
