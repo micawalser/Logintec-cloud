@@ -224,6 +224,9 @@ class MachinesSitesService {
       console.log(`✅ Obtenidas ${maquinas.length} máquinas desde PostgreSQL`);
       return maquinas;
     } catch (error) {
+      if (error?.response?.status === 401) {
+        return [];
+      }
       console.error('❌ Error obteniendo máquinas desde PostgreSQL:', error);
       console.log('⚠️ Usando fallback: obteniendo máquinas desde escaneos...');
       return this.getAllMachinesFromScans();
@@ -270,6 +273,9 @@ class MachinesSitesService {
 
       return Object.values(maquinasMap);
     } catch (error) {
+      if (error?.response?.status === 401) {
+        return [];
+      }
       console.error('❌ Error en fallback de máquinas:', error);
       console.log('⚠️ Usando datos mock como último recurso');
       return this.getMockMachines();
@@ -300,6 +306,9 @@ class MachinesSitesService {
       console.log(`✅ Obtenidos ${sitios.length} sitios desde PostgreSQL`);
       return sitios;
     } catch (error) {
+      if (error?.response?.status === 401) {
+        return [];
+      }
       console.error('❌ Error obteniendo sitios desde PostgreSQL:', error);
       console.log('⚠️ Usando fallback: obteniendo sitios desde escaneos...');
       return this.getAllSitesFromScans();
@@ -349,6 +358,9 @@ class MachinesSitesService {
 
       return Object.values(sitiosMap);
     } catch (error) {
+      if (error?.response?.status === 401) {
+        return [];
+      }
       console.error('❌ Error en fallback de sitios:', error);
       console.log('⚠️ Usando datos mock como último recurso');
       return this.getMockSites();

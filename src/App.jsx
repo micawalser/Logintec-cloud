@@ -294,9 +294,42 @@ import { API_BASE_URL, BACKEND_PUBLIC_URL, DEFAULT_ESCANEOS_PAGE_SIZE } from './
 const pageSize = DEFAULT_ESCANEOS_PAGE_SIZE;
 
 // getAuthHeaders como función normal fuera de los componentes
-const getAuthHeaders = () => ({
-  'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-});
+const AUTH_EXPIRED_EVENT = 'logintec-auth-expired';
+const AUTH_EXPIRED_MSG_KEY = 'logintec_auth_expired';
+
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('authToken');
+  if (!token || token === 'null') return {};
+  return { Authorization: `Bearer ${token}` };
+};
+
+function expireAuthSession() {
+  const token = localStorage.getItem('authToken');
+  if (!token) return;
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('userData');
+  try {
+    sessionStorage.setItem(
+      AUTH_EXPIRED_MSG_KEY,
+      'Tu sesión expiró. Volvé a iniciar sesión para ver los escaneos.',
+    );
+  } catch {
+    /* ignore */
+  }
+  window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+}
+
+axios.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    const status = err?.response?.status;
+    const url = String(err?.config?.url || '');
+    if (status === 401 && !url.includes('/auth/token')) {
+      expireAuthSession();
+    }
+    return Promise.reject(err);
+  },
+);
 
 // Función para verificar si está en modo demo
 const isDemoMode = () => {
@@ -644,7 +677,15 @@ function ProgressMetric({ label, value, color }) {
 const LoginForm = ({ onLogin, colorMode, onToggleColorMode }) => {
   const [usuario, setUsuario] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(() => {
+    try {
+      const msg = sessionStorage.getItem(AUTH_EXPIRED_MSG_KEY);
+      if (msg) sessionStorage.removeItem(AUTH_EXPIRED_MSG_KEY);
+      return msg || '';
+    } catch {
+      return '';
+    }
+  });
   const [loading, setLoading] = useState(false);
   const [demoMode, setDemoMode] = useState(localStorage.getItem(DEMO_MODE_KEY) === 'true');
 
@@ -1043,7 +1084,17 @@ const Dashboard = ({ onLogout, colorMode, onToggleColorMode }) => {
       }
       const status = err?.response?.status;
       const code = err?.code;
-      if (status === 502 || status === 503 || code === 'ERR_NETWORK') {
+      if (status === 401) {
+        setError('Tu sesión expiró. Volvé a iniciar sesión para ver los escaneos.');
+      } else if (status === 500) {
+        const detail = err?.response?.data?.detail;
+        const detailText = typeof detail === 'string' ? detail : '';
+        setError(
+          detailText
+            ? `El servidor no pudo cargar los escaneos: ${detailText}`
+            : 'El servidor no pudo cargar los escaneos. Esperá unos segundos y pulsá Actualizar.',
+        );
+      } else if (status === 502 || status === 503 || code === 'ERR_NETWORK') {
         setError(
           'No se pudo conectar con el servidor (no disponible o error de red). En desarrollo usa `npm run dev` con el proxy de Vite; si el backend está en Render, puede estar frío o saturado: reintenta en unos segundos.',
         );
@@ -2124,7 +2175,11 @@ function App() {
     try {
       const { data } = await api.fetchCurrentUser();
       if (data) localStorage.setItem('userData', JSON.stringify(data));
-    } catch {
+    } catch (err) {
+      if (err?.response?.status === 401 || !localStorage.getItem('authToken')) {
+        localStorage.removeItem('authToken');
+        throw err;
+      }
       try {
         if (!localStorage.getItem('userData')) {
           localStorage.setItem(
@@ -2136,8 +2191,17 @@ function App() {
         /* ignore */
       }
     }
+    if (!localStorage.getItem('authToken')) {
+      throw new Error('No se pudo iniciar sesión. Volvé a intentar.');
+    }
     setIsLoggedIn(true);
   };
+
+  useEffect(() => {
+    const onExpired = () => setIsLoggedIn(false);
+    window.addEventListener(AUTH_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onExpired);
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('authToken');
